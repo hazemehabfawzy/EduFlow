@@ -40,6 +40,10 @@ class CourseProvider extends ChangeNotifier {
     return _service.streamAllCourses().map((courses) {
       _allCourses = courses;
       _applyFilter();
+      // Schedule notify after build to avoid setState during build error
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
       return _filtered;
     });
   }

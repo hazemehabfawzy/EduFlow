@@ -120,12 +120,16 @@ class AppTheme {
 
       // AppBar
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.surfaceLight,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.white,
+        surfaceTintColor: AppColors.primary,   // ADD THIS
         elevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        iconTheme: const IconThemeData(color: AppColors.white),
         titleTextStyle: GoogleFonts.poppins(
-          fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.white,
         ),
       ),
 
@@ -223,10 +227,14 @@ class AppTheme {
 
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surfaceDark,
+        foregroundColor: AppColors.white,
+        surfaceTintColor: Colors.transparent,   // ADD THIS
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.white),
         titleTextStyle: GoogleFonts.poppins(
-          fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: AppColors.white,
         ),
       ),
 

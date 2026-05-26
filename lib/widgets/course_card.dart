@@ -23,9 +23,7 @@ class CourseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return 
-    SingleChildScrollView(child: 
-    GestureDetector(
+    return GestureDetector(
       onTap: onTap,
       child: Container(
         width: width,
@@ -164,12 +162,11 @@ class CourseCard extends StatelessWidget {
                     ],
                   ),
                 ],
-              ),
             ),
           ],
         ),
       ),
-    ));
+    );
   }
 
   Color _levelColor(String level) {

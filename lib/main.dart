@@ -13,12 +13,11 @@ import 'screens/home/home_screen.dart';
 import 'screens/course_detail/course_detail_screen.dart';
 import 'screens/lesson/lesson_screen.dart';
 import 'screens/quiz/quiz_screen.dart';
-// import 'firebase_options.dart'; // ← Uncomment after `flutterfire configure`
+import 'firebase_options.dart'; // ← Uncomment after `flutterfire configure`
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(
     MultiProvider(
