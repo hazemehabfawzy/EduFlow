@@ -26,7 +26,10 @@ class FirestoreService {
         (snap) => snap.docs
             .map((d) =>
                 CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList());
+            .toList()).handleError((error) {
+      print('[Firestore] streamAllCourses error: $error');
+      return <CourseModel>[];
+    });
   }
 
   /// Stream of featured courses only.
@@ -38,7 +41,10 @@ class FirestoreService {
         .map((snap) => snap.docs
             .map((d) =>
                 CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList());
+            .toList()).handleError((error) {
+      print('[Firestore] streamFeaturedCourses error: $error');
+      return <CourseModel>[];
+    });
   }
 
   /// Stream of courses filtered by category.
@@ -47,14 +53,22 @@ class FirestoreService {
         (snap) => snap.docs
             .map((d) =>
                 CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList());
+            .toList()).handleError((error) {
+      print('[Firestore] streamCoursesByCategory error: $error');
+      return <CourseModel>[];
+    });
   }
 
   /// Fetch a single course by ID (one-time read).
   Future<CourseModel?> fetchCourse(String courseId) async {
-    final doc = await _courses.doc(courseId).get();
-    if (!doc.exists) return null;
-    return CourseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    try {
+      final doc = await _courses.doc(courseId).get();
+      if (!doc.exists) return null;
+      return CourseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    } catch (error) {
+      print(error);
+      return null;
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -70,18 +84,26 @@ class FirestoreService {
         .map((snap) => snap.docs
             .map((d) =>
                 LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList());
+            .toList()).handleError((error) {
+      print('[Firestore] streamLessons error: $error');
+      return <LessonModel>[];
+    });
   }
 
   /// One-time fetch of course lessons (used by detail screen initial load).
   Future<List<LessonModel>> fetchLessons(String courseId) async {
-    final snap = await _lessons
-        .where('courseId', isEqualTo: courseId)
-        .orderBy('order')
-        .get();
-    return snap.docs
-        .map((d) => LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-        .toList();
+    try {
+      final snap = await _lessons
+          .where('courseId', isEqualTo: courseId)
+          .orderBy('order')
+          .get();
+      return snap.docs
+          .map((d) => LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+          .toList();
+    } catch (error) {
+      print(error);
+      return [];
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -93,15 +115,20 @@ class FirestoreService {
     required String userId,
     required String courseId,
   }) async {
-    final snap = await _enrollments
-        .where('userId', isEqualTo: userId)
-        .where('courseId', isEqualTo: courseId)
-        .limit(1)
-        .get();
+    try {
+      final snap = await _enrollments
+          .where('userId', isEqualTo: userId)
+          .where('courseId', isEqualTo: courseId)
+          .limit(1)
+          .get();
 
-    if (snap.docs.isEmpty) return null;
-    final doc = snap.docs.first;
-    return EnrollmentModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      if (snap.docs.isEmpty) return null;
+      final doc = snap.docs.first;
+      return EnrollmentModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    } catch (error) {
+      print(error);
+      return null;
+    }
   }
 
   /// Stream enrollment for real-time progress updates on Course Detail screen.
@@ -119,6 +146,9 @@ class FirestoreService {
       final doc = snap.docs.first;
       return EnrollmentModel.fromMap(
           doc.data() as Map<String, dynamic>, doc.id);
+    }).handleError((error) {
+      print('[Firestore] streamEnrollment error: $error');
+      return null;
     });
   }
 
@@ -174,7 +204,10 @@ class FirestoreService {
         (snap) => snap.docs
             .map((d) =>
                 EnrollmentModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList());
+            .toList()).handleError((error) {
+      print('[Firestore] streamUserEnrollments error: $error');
+      return <EnrollmentModel>[];
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -183,9 +216,14 @@ class FirestoreService {
 
   /// Fetch user profile details.
   Future<UserModel?> fetchUser(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
-    if (!doc.exists) return null;
-    return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    try {
+      final doc = await _db.collection('users').doc(uid).get();
+      if (!doc.exists) return null;
+      return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    } catch (error) {
+      print(error);
+      return null;
+    }
   }
 
   /// Add a new course.
@@ -226,7 +264,10 @@ class FirestoreService {
         (snap) => snap.docs
             .map((d) =>
                 EnrollmentModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList());
+            .toList()).handleError((error) {
+      print('[Firestore] streamCourseEnrollments error: $error');
+      return <EnrollmentModel>[];
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -241,13 +282,20 @@ class FirestoreService {
         .map((snap) => snap.docs
             .map((d) =>
                 CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList());
+            .toList()).handleError((error) {
+      print('[Firestore] streamTeacherCourses error: $error');
+      return <CourseModel>[];
+    });
   }
 
   /// Stream all users.
   Stream<List<UserModel>> streamUsers() {
     return _db.collection('users').snapshots().map((snap) =>
-        snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList());
+        snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList())
+        .handleError((error) {
+      print('[Firestore] streamUsers error: $error');
+      return <UserModel>[];
+    });
   }
 
   /// Update a user's role.
@@ -262,17 +310,32 @@ class FirestoreService {
 
   /// Aggregate counts for analytics
   Future<int> countUsers() async {
-    final snap = await _db.collection('users').count().get();
-    return snap.count ?? 0;
+    try {
+      final snap = await _db.collection('users').count().get();
+      return snap.count ?? 0;
+    } catch (error) {
+      print(error);
+      return 0;
+    }
   }
 
   Future<int> countCourses() async {
-    final snap = await _courses.count().get();
-    return snap.count ?? 0;
+    try {
+      final snap = await _courses.count().get();
+      return snap.count ?? 0;
+    } catch (error) {
+      print(error);
+      return 0;
+    }
   }
 
   Future<int> countEnrollments() async {
-    final snap = await _enrollments.count().get();
-    return snap.count ?? 0;
+    try {
+      final snap = await _enrollments.count().get();
+      return snap.count ?? 0;
+    } catch (error) {
+      print(error);
+      return 0;
+    }
   }
 }

@@ -603,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisCount: 2,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
-            childAspectRatio: 0.52,
+            childAspectRatio: 0.48,
           ),
         ),
       );
@@ -672,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisCount: 2,
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
-          childAspectRatio: 0.52,
+          childAspectRatio: 0.48,
         ),
       ),
     );

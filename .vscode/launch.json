@@ -2,18 +2,36 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "EduFlow (Android Debug)",
+            "name": "EduFlow — Android (Debug)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "debug",
-            "deviceId": "android"
+            "deviceId": "emulator-5554",
+            "program": "lib/main.dart"
         },
         {
-            "name": "EduFlow (Android Release)",
+            "name": "EduFlow — Android (Release)",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release",
-            "deviceId": "android"
+            "deviceId": "emulator-5554",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "EduFlow — Chrome (Web Debug)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug",
+            "deviceId": "chrome",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "EduFlow — Edge (Web Debug)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "debug",
+            "deviceId": "edge",
+            "program": "lib/main.dart"
         }
     ]
 }

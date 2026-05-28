@@ -47,10 +47,12 @@ class CourseCard extends StatelessWidget {
               // Main content
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // ── Thumbnail ─────────────────────────────────────────────
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(20)),
                     child: AspectRatio(
                       aspectRatio: 16 / 9,
                       child: Stack(
@@ -63,7 +65,8 @@ class CourseCard extends StatelessWidget {
                               top: 10,
                               right: 10,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: Colors.redAccent.withOpacity(0.92),
                                   borderRadius: BorderRadius.circular(12),
@@ -78,7 +81,8 @@ class CourseCard extends StatelessWidget {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Text('🔥', style: TextStyle(fontSize: 11)),
+                                    const Text('🔥',
+                                        style: TextStyle(fontSize: 11)),
                                     const SizedBox(width: 4),
                                     Text(
                                       'Popular',
@@ -99,14 +103,15 @@ class CourseCard extends StatelessWidget {
 
                   // ── Info ──────────────────────────────────────────────────
                   Padding(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Category chip
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
@@ -114,13 +119,13 @@ class CourseCard extends StatelessWidget {
                           child: Text(
                             course.category,
                             style: GoogleFonts.poppins(
-                              fontSize: 10,
+                              fontSize: 9,
                               fontWeight: FontWeight.w600,
                               color: AppColors.primary,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
 
                         // Title
                         Text(
@@ -128,73 +133,89 @@ class CourseCard extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: isDark ? AppColors.white : AppColors.textPrimary,
+                            color: isDark
+                                ? AppColors.white
+                                : AppColors.textPrimary,
                             height: 1.4,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
 
                         // Instructor
                         Row(
                           children: [
-                            const Icon(Icons.person_outline_rounded, size: 13, color: AppColors.textHint),
+                            const Icon(Icons.person_outline_rounded,
+                                size: 13, color: AppColors.textHint),
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
                                 course.instructorName,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.dmSans(
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   color: AppColors.textSecondary,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 6),
 
-                        // Rating + lessons + duration row
+                        // Rating + lessons + level badge row
                         Row(
                           children: [
-                            // Star rating
-                            const Icon(Icons.star_rounded, color: AppColors.warning, size: 14),
-                            const SizedBox(width: 3),
-                            Text(
-                              course.rating.toStringAsFixed(1),
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.warning,
+                            // Left stats – shrink if card is narrow
+                            Flexible(
+                              fit: FlexFit.tight,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.star_rounded,
+                                      color: AppColors.warning, size: 14),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    course.rating.toStringAsFixed(1),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.warning,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.play_circle_outline_rounded,
+                                      size: 13, color: AppColors.textHint),
+                                  const SizedBox(width: 3),
+                                  Flexible(
+                                    child: Text(
+                                      '${course.totalLessons} less.',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 10,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 10),
 
-                            // Lessons count
-                            const Icon(Icons.play_circle_outline_rounded, size: 13, color: AppColors.textHint),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${course.totalLessons} less.',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
+                            const SizedBox(width: 6),
 
-                            const Spacer(),
-
-                            // Level badge
+                            // Level badge – always visible, never expands
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: levelColor.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 course.level,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
-                                  fontSize: 9,
+                                  fontSize: 8,
                                   fontWeight: FontWeight.bold,
                                   color: levelColor,
                                 ),
@@ -226,10 +247,14 @@ class CourseCard extends StatelessWidget {
 
   Color _levelColor(String level) {
     switch (level.toLowerCase()) {
-      case 'beginner': return AppColors.success;
-      case 'intermediate': return AppColors.warning;
-      case 'advanced': return AppColors.error;
-      default: return AppColors.primary;
+      case 'beginner':
+        return AppColors.success;
+      case 'intermediate':
+        return AppColors.warning;
+      case 'advanced':
+        return AppColors.error;
+      default:
+        return AppColors.primary;
     }
   }
 }

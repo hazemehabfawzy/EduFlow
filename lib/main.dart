@@ -1,6 +1,9 @@
 // lib/main.dart
+import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 
 import 'core/constants/app_routes.dart';
@@ -19,18 +22,30 @@ import 'screens/profile/profile_screen.dart';
 import 'firebase_options.dart'; // ← Uncomment after `flutterfire configure`
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => CourseProvider()),
-      ],
-      child: const EduFlowApp(),
-    ),
-  );
+    // Offline persistence — mobile only (web uses IndexedDB automatically).
+    if (!kIsWeb) {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+    }
+
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => CourseProvider()),
+        ],
+        child: const EduFlowApp(),
+      ),
+    );
+  }, (error, stack) {
+    print(error);
+  });
 }
 
 class EduFlowApp extends StatefulWidget {
