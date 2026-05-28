@@ -26,11 +26,14 @@ class AuthProvider extends ChangeNotifier {
 
   // ── Init ───────────────────────────────────────────────────────────────────
 
-  /// Called once on app start to restore user if already logged in.
   Future<void> init() async {
-    _setLoading(true);
-    _currentUser = await _authService.fetchCurrentUserModel();
-    _setLoading(false);
+    try {
+      _currentUser = await _authService.fetchCurrentUserModel();
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      notifyListeners();
+    }
   }
 
   // ── Sign Up ────────────────────────────────────────────────────────────────

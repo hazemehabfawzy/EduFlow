@@ -16,6 +16,7 @@ class CustomTextField extends StatefulWidget {
   final FocusNode? focusNode;
   final VoidCallback? onEditingComplete;
   final bool enabled;
+  final int maxLines;
 
   const CustomTextField({
     super.key,
@@ -30,6 +31,7 @@ class CustomTextField extends StatefulWidget {
     this.focusNode,
     this.onEditingComplete,
     this.enabled = true,
+    this.maxLines = 1,
   });
 
   @override
@@ -46,6 +48,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(() {
+      if (!mounted) return;
       setState(() => _isFocused = _focusNode.hasFocus);
     });
   }
@@ -94,6 +97,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           child: TextFormField(
             controller: widget.controller,
             focusNode: _focusNode,
+            maxLines: widget.maxLines,
             obscureText: widget.isPassword && _obscure,
             keyboardType: widget.keyboardType,
             textInputAction: widget.textInputAction,

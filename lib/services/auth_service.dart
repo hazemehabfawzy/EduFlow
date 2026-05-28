@@ -65,12 +65,18 @@ class AuthService {
       final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
+      ).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => throw Exception('Authentication timed out. Please check your internet connection.'),
       );
 
       final user = credential.user!;
       return await _fetchUserModel(user.uid);
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception(e.toString());
     }
   }
 
@@ -95,7 +101,10 @@ class AuthService {
 
   /// Reads /users/{uid} from Firestore and maps it to [UserModel].
   Future<UserModel> _fetchUserModel(String uid) async {
-    final doc = await _db.collection('users').doc(uid).get();
+    final doc = await _db.collection('users').doc(uid).get().timeout(
+      const Duration(seconds: 6),
+      onTimeout: () => throw Exception('Failed to connect to the database. Please try again.'),
+    );
     if (!doc.exists) {
       throw Exception('User profile not found. Please contact support.');
     }

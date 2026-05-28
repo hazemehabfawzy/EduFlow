@@ -1,4 +1,3 @@
-// lib/screens/course_detail/course_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -54,9 +53,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                   ),
                   // Floating enroll / continue button
                   Positioned(
-                    bottom: 0, left: 0, right: 0,
-                    child: _buildBottomBar(
-                        course, enrollment, lessons, userId),
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildBottomBar(course, enrollment, lessons, userId),
                   ),
                 ],
               );
@@ -110,8 +110,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     imageUrl: course.imageUrl,
                     fit: BoxFit.cover,
                     placeholder: (_, __) => Container(
-                      decoration: const BoxDecoration(
-                          gradient: AppColors.primaryGradient)),
+                        decoration: const BoxDecoration(
+                            gradient: AppColors.primaryGradient)),
                     errorWidget: (_, __, ___) => _heroBannerPlaceholder(),
                   )
                 : _heroBannerPlaceholder(),
@@ -132,7 +132,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
             // Course level + category badges (bottom left)
             Positioned(
-              bottom: 16, left: 16,
+              bottom: 16,
+              left: 16,
               child: Row(children: [
                 _Badge(label: course.category, color: AppColors.primary),
                 const SizedBox(width: 8),
@@ -146,7 +147,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             // Progress bar overlay if enrolled
             if (enrollment != null)
               Positioned(
-                bottom: 0, left: 0, right: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
                 child: LinearProgressIndicator(
                   value: enrollment.progress,
                   backgroundColor: AppColors.white.withOpacity(0.2),
@@ -185,10 +188,10 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(course.title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineLarge
-                        ?.copyWith(height: 1.3))
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineLarge
+                            ?.copyWith(height: 1.3))
                     .animate()
                     .fadeIn(duration: 400.ms)
                     .slideY(begin: 0.1),
@@ -207,7 +210,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             _buildProgressCard(enrollment, lessons)
                 .animate()
                 .fadeIn(duration: 400.ms, delay: 150.ms),
-
 
           // ── Description ─────────────────────────────────────────────────
           _buildDescriptionSection(course)
@@ -283,12 +285,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           ),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: AppColors.success.withOpacity(0.25), width: 1.5),
+              color: AppColors.success.withOpacity(0.25), width: 1.5),
         ),
         child: Row(children: [
           // Circular progress
           SizedBox(
-            width: 60, height: 60,
+            width: 60,
+            height: 60,
             child: Stack(alignment: Alignment.center, children: [
               CircularProgressIndicator(
                 value: enrollment.progress,
@@ -298,7 +301,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               ),
               Text('$pct%',
                   style: GoogleFonts.poppins(
-                    fontSize: 13, fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.success,
                   )),
             ]),
@@ -310,21 +314,21 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               children: [
                 Text('Your Progress',
                     style: GoogleFonts.poppins(
-                      fontSize: 14, fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                       color: isDark ? AppColors.white : AppColors.textPrimary,
                     )),
                 const SizedBox(height: 4),
                 Text('$completed of $total lessons completed',
                     style: GoogleFonts.dmSans(
-                      fontSize: 13, color: AppColors.textSecondary)),
+                        fontSize: 13, color: AppColors.textSecondary)),
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: enrollment.progress,
                     backgroundColor: AppColors.success.withOpacity(0.15),
-                    valueColor:
-                        const AlwaysStoppedAnimation(AppColors.success),
+                    valueColor: const AlwaysStoppedAnimation(AppColors.success),
                     minHeight: 6,
                   ),
                 ),
@@ -335,8 +339,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       ),
     );
   }
-
-
 
   // ── Description ─────────────────────────────────────────────────────────────
   Widget _buildDescriptionSection(CourseModel course) {
@@ -361,15 +363,19 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               maxLines: maxLines,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.dmSans(
-                fontSize: 14, height: 1.7,
-                color: isDark ? const Color(0xFFB0B8C4) : AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.7,
+                color:
+                    isDark ? const Color(0xFFB0B8C4) : AppColors.textSecondary,
               ),
             ),
             secondChild: Text(
               course.description,
               style: GoogleFonts.dmSans(
-                fontSize: 14, height: 1.7,
-                color: isDark ? const Color(0xFFB0B8C4) : AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.7,
+                color:
+                    isDark ? const Color(0xFFB0B8C4) : AppColors.textSecondary,
               ),
             ),
           ),
@@ -379,7 +385,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             child: Text(
               _descExpanded ? 'Show less' : 'Read more',
               style: GoogleFonts.poppins(
-                fontSize: 13, fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
                 color: AppColors.primary,
               ),
             ),
@@ -408,7 +415,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             ],
           ),
           const SizedBox(height: 16),
-
           if (lessons.isEmpty)
             _NoLessonsPlaceholder()
           else
@@ -419,10 +425,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (_, i) {
                 final lesson = lessons[i];
-                final isCompleted = enrollment?.completedLessonIds
-                        .contains(lesson.id) ?? false;
-                final isLocked =
-                    enrollment == null && !lesson.isPreview;
+                final isCompleted =
+                    enrollment?.completedLessonIds.contains(lesson.id) ?? false;
+                final isLocked = enrollment == null && !lesson.isPreview;
                 return _LessonTile(
                   lesson: lesson,
                   index: i + 1,
@@ -440,8 +445,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             },
                           ),
                 ).animate().fadeIn(
-                    duration: 300.ms,
-                    delay: Duration(milliseconds: 40 * i));
+                    duration: 300.ms, delay: Duration(milliseconds: 40 * i));
               },
             ),
         ],
@@ -481,16 +485,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           ? GradientButton(
               label: 'Enroll for Free',
               isLoading: isEnrolling,
-              onPressed: isEnrolling
-                  ? null
-                  : () => _enrollInCourse(course, userId),
+              onPressed:
+                  isEnrolling ? null : () => _enrollInCourse(course, userId),
               icon: const Icon(Icons.rocket_launch_rounded,
                   color: AppColors.white, size: 18),
             )
           : enrollment.isCompleted
               ? GradientButton(
                   label: '🎉  Course Completed!',
-                  gradientColors: [AppColors.success, AppColors.accent],
+                  gradientColors: const [AppColors.success, AppColors.accent],
                   onPressed: () {},
                 )
               : GradientButton(
@@ -514,22 +517,22 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
   // ── Actions ─────────────────────────────────────────────────────────────────
   Future<void> _enrollInCourse(CourseModel course, String userId) async {
-    final result = await context.read<CourseProvider>().enroll(
-          userId: userId, courseId: course.id);
+    final result = await context
+        .read<CourseProvider>()
+        .enroll(userId: userId, courseId: course.id);
 
     if (!mounted) return;
     if (result != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(children: [
-            const Icon(Icons.check_circle_outline, color: AppColors.success),
-            const SizedBox(width: 10),
-            const Expanded(child: Text('Enrolled successfully! Start learning.')),
+          content: const Row(children: [
+            Icon(Icons.check_circle_outline, color: AppColors.success),
+            SizedBox(width: 10),
+            Expanded(child: Text('Enrolled successfully! Start learning.')),
           ]),
-          backgroundColor:
-              Theme.of(context).brightness == Brightness.dark
-                  ? AppColors.cardDark
-                  : AppColors.white,
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.cardDark
+              : AppColors.white,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -539,8 +542,8 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     } else {
       final err = context.read<CourseProvider>().errorMessage;
       if (err != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(err)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(err)));
       }
     }
   }
@@ -555,22 +558,21 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           color: Theme.of(context).brightness == Brightness.dark
               ? AppColors.cardDark
               : AppColors.white,
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppColors.textHint,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 24),
-            const Icon(Icons.lock_rounded,
-                size: 40, color: AppColors.primary),
+            const Icon(Icons.lock_rounded, size: 40, color: AppColors.primary),
             const SizedBox(height: 12),
             Text('Enroll to unlock this lesson',
                 style: Theme.of(context).textTheme.headlineMedium),
@@ -591,10 +593,14 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
   Color _levelColor(String level) {
     switch (level.toLowerCase()) {
-      case 'beginner':     return AppColors.success;
-      case 'intermediate': return AppColors.warning;
-      case 'advanced':     return AppColors.error;
-      default:             return AppColors.primary;
+      case 'beginner':
+        return AppColors.success;
+      case 'intermediate':
+        return AppColors.warning;
+      case 'advanced':
+        return AppColors.error;
+      default:
+        return AppColors.primary;
     }
   }
 }
@@ -618,7 +624,9 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(label,
           style: GoogleFonts.poppins(
-            fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.white)),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.white)),
     );
   }
 }
@@ -636,8 +644,8 @@ class _StatItem extends StatelessWidget {
       Icon(icon, size: 16, color: iconColor),
       const SizedBox(width: 5),
       Text(label,
-          style: GoogleFonts.dmSans(
-              fontSize: 13, color: AppColors.textSecondary)),
+          style:
+              GoogleFonts.dmSans(fontSize: 13, color: AppColors.textSecondary)),
     ]);
   }
 }
@@ -680,7 +688,8 @@ class _LessonTile extends StatelessWidget {
         child: Row(children: [
           // Index / status icon
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               color: isCompleted
                   ? AppColors.success.withOpacity(0.12)
@@ -698,7 +707,8 @@ class _LessonTile extends StatelessWidget {
                           color: AppColors.textHint, size: 18)
                       : Text('$index',
                           style: GoogleFonts.poppins(
-                            fontSize: 14, fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.primary,
                           )),
             ),
@@ -710,12 +720,11 @@ class _LessonTile extends StatelessWidget {
               children: [
                 Text(lesson.title,
                     style: GoogleFonts.poppins(
-                      fontSize: 13, fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
                       color: isLocked
                           ? AppColors.textHint
-                          : (isDark
-                              ? AppColors.white
-                              : AppColors.textPrimary),
+                          : (isDark ? AppColors.white : AppColors.textPrimary),
                     )),
                 if (lesson.formattedDuration.isNotEmpty) ...[
                   const SizedBox(height: 3),
@@ -730,15 +739,15 @@ class _LessonTile extends StatelessWidget {
           // Preview label or play icon
           if (lesson.isPreview && !isCompleted)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: AppColors.accent.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text('Free',
                   style: GoogleFonts.poppins(
-                    fontSize: 10, fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.accent,
                   )),
             )

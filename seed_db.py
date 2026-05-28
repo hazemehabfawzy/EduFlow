@@ -1,8 +1,41 @@
 # seed_db.py
 import datetime
 import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
+from firebase_admin import credentials, auth, firestore
+
+"""
+RECOMMENDED FIREBASE FIRESTORE SECURITY RULES:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users: read own, admin reads all, admin writes all
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin']);
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    // Courses: anyone authenticated reads, teacher/admin writes
+    match /courses/{courseId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher'];
+    }
+    // Enrollments: user reads/writes own
+    match /enrollments/{enrollmentId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+    // Lessons/Quizzes: authenticated reads, teacher/admin writes
+    match /lessons/{lessonId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher'];
+    }
+    match /quizzes/{quizId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'teacher'];
+    }
+  }
+}
+"""
 
 # 1. Initialize Firebase Admin SDK
 # Make sure you have downloaded your 'serviceAccountKey.json' file from the
@@ -19,6 +52,39 @@ except Exception as e:
 
 # Get Firestore Client
 db = firestore.client()
+
+def create_user_if_not_exists(email, password, name, role):
+    try:
+        try:
+            # Check if Auth user already exists
+            user = auth.get_user_by_email(email)
+            uid = user.uid
+            print(f"⚠️  Auth user for {role} already exists with email: {email} (UID: {uid})")
+        except auth.UserNotFoundError:
+            # Create in Firebase Auth
+            user = auth.create_user(email=email, password=password, display_name=name)
+            uid = user.uid
+            print(f"✅ Created Auth user for {role}: {email} (UID: {uid})")
+        
+        # Write user profile doc to /users/{uid} in Firestore
+        user_ref = db.collection("users").document(uid)
+        if not user_ref.get().exists:
+            user_ref.set({
+                "uid": uid,
+                "name": name,
+                "email": email,
+                "role": role,
+                "avatarUrl": None,
+                "createdAt": datetime.datetime.now(datetime.timezone.utc)
+            })
+            print(f"✅ Created Firestore document for {role}: {email}")
+        else:
+            # If doc exists, update/assert the role is correct
+            user_ref.update({"role": role})
+            print(f"⚠️  Firestore document for {email} already exists (role asserted/updated to: {role}).")
+    except Exception as e:
+        print(f"❌ Error creating/updating {role} ({email}): {e}")
+
 
 # Define Pre-configured Course IDs for relational link integrity
 FLUTTER_COURSE_ID = "flutter_masterclass_101"
@@ -255,4 +321,19 @@ def seed_database():
     print("\n✨ Firestore Seeding Completed Successfully! ✨\n")
 
 if __name__ == "__main__":
+    # Create required bootstrap users first
+    print("\n👤 Bootstrapping Auth & User Accounts...")
+    create_user_if_not_exists(
+        email="admin@eduflow.app",
+        password="Admin@EduFlow2026",
+        name="EduFlow Admin",
+        role="admin"
+    )
+    create_user_if_not_exists(
+        email="hazemehab2742001@gmail.com",
+        password="Teacher@2024",
+        name="Hazem Ehab",
+        role="teacher"
+    )
+    
     seed_database()

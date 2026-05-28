@@ -13,6 +13,9 @@ import 'screens/home/home_screen.dart';
 import 'screens/course_detail/course_detail_screen.dart';
 import 'screens/lesson/lesson_screen.dart';
 import 'screens/quiz/quiz_screen.dart';
+import 'screens/admin/admin_screen.dart';
+import 'screens/teacher/teacher_dashboard_screen.dart';
+import 'screens/profile/profile_screen.dart';
 import 'firebase_options.dart'; // ← Uncomment after `flutterfire configure`
 
 void main() async {
@@ -25,36 +28,39 @@ void main() async {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => CourseProvider()),
       ],
-      child: const SkillNestApp(),
+      child: const EduFlowApp(),
     ),
   );
 }
 
-class SkillNestApp extends StatefulWidget {
-  const SkillNestApp({super.key});
+class EduFlowApp extends StatefulWidget {
+  const EduFlowApp({super.key});
   @override
-  State<SkillNestApp> createState() => _SkillNestAppState();
+  State<EduFlowApp> createState() => _EduFlowAppState();
 }
 
-class _SkillNestAppState extends State<SkillNestApp> {
-  ThemeMode _themeMode = ThemeMode.system;
+class _EduFlowAppState extends State<EduFlowApp> {
+  final ThemeMode _themeMode = ThemeMode.system;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SkillNestfffffff',
+      title: 'EduFlow',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: _themeMode,
       initialRoute: AppRoutes.splash,
       routes: {
-        AppRoutes.splash        : (_) => const SplashScreen(),
-        AppRoutes.auth          : (_) => const AuthScreen(),
-        AppRoutes.home          : (_) => const HomeScreen(),
-        AppRoutes.courseDetail  : (_) => const CourseDetailScreen(),
-        AppRoutes.lesson        : (_) => const LessonScreen(),
-        AppRoutes.quiz          : (_) => const QuizScreen(),
+        AppRoutes.splash: (_) => const SplashScreen(),
+        AppRoutes.auth: (_) => const AuthScreen(),
+        AppRoutes.home: (_) => const HomeScreen(),
+        AppRoutes.courseDetail: (_) => const CourseDetailScreen(),
+        AppRoutes.lesson: (_) => const LessonScreen(),
+        AppRoutes.quiz: (_) => const QuizScreen(),
+        AppRoutes.admin: (_) => const AdminScreen(),
+        AppRoutes.teacherDashboard: (_) => const TeacherDashboardScreen(),
+        AppRoutes.profile: (_) => const ProfileScreen(),
       },
       onUnknownRoute: (_) => MaterialPageRoute(
         builder: (_) => const Scaffold(
@@ -64,3 +70,6 @@ class _SkillNestAppState extends State<SkillNestApp> {
     );
   }
 }
+
+typedef MyApp = EduFlowApp;
+

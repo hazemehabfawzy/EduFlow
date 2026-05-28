@@ -50,9 +50,15 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     final auth = context.read<AuthProvider>();
-    Navigator.of(context).pushReplacementNamed(
-      auth.isAuthenticated ? AppRoutes.home : AppRoutes.auth,
-    );
+    if (!auth.isAuthenticated) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.auth);
+    } else if (auth.currentUser!.isAdmin) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.admin);
+    } else if (auth.currentUser!.isTeacher) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.teacherDashboard);
+    } else {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+    }
   }
 
   @override
@@ -126,7 +132,7 @@ class _SplashScreenState extends State<SplashScreen>
                   const SizedBox(height: 24),
 
                   Text(
-                    'SkillNest',
+                    'EduFlow',
                     style: GoogleFonts.poppins(
                       fontSize: 36,
                       fontWeight: FontWeight.w700,
@@ -148,9 +154,7 @@ class _SplashScreenState extends State<SplashScreen>
                       fontWeight: FontWeight.w400,
                       letterSpacing: 0.5,
                     ),
-                  )
-                      .animate()
-                      .fadeIn(duration: 500.ms, delay: 600.ms),
+                  ).animate().fadeIn(duration: 500.ms, delay: 600.ms),
 
                   const SizedBox(height: 60),
 
@@ -168,19 +172,24 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Widget _buildDecorativeCircles() {
-    return Stack(
+    return const Stack(
       children: [
         Positioned(
-          top: -60, left: -60,
-          child: _GlowCircle(size: 200, color: AppColors.primary, opacity: 0.15),
+          top: -60,
+          left: -60,
+          child:
+              _GlowCircle(size: 200, color: AppColors.primary, opacity: 0.15),
         ),
         Positioned(
-          bottom: -40, right: -60,
+          bottom: -40,
+          right: -60,
           child: _GlowCircle(size: 250, color: AppColors.accent, opacity: 0.12),
         ),
         Positioned(
-          top: 200, right: -30,
-          child: _GlowCircle(size: 140, color: AppColors.secondary, opacity: 0.1),
+          top: 200,
+          right: -30,
+          child:
+              _GlowCircle(size: 140, color: AppColors.secondary, opacity: 0.1),
         ),
       ],
     );

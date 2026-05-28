@@ -1,15 +1,18 @@
 // lib/screens/home/home_screen.dart
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:percent_indicator/circular_percent_indicator.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../models/course_model.dart';
+import '../../models/enrollment_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/course_provider.dart';
+import '../../services/firestore_service.dart';
 import '../../widgets/course_card.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/shimmer_card.dart';
@@ -22,6 +25,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final FirestoreService _firestoreService = FirestoreService();
   final _searchCtrl = TextEditingController();
   late Stream<List<CourseModel>> _coursesStream;
   List<CourseModel> _courses = [];
@@ -44,109 +48,202 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = context.watch<AuthProvider>().currentUser;
+
+    // 1. Role-based redirect for Teacher
+    if (user != null && user.isTeacher) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacementNamed(AppRoutes.teacherDashboard);
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final firstName = user?.name.split(' ').first ?? 'Learner';
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
-      body: StreamBuilder<List<CourseModel>>(
-        stream: _coursesStream,
-        builder: (context, snapshot) {
-          // Update local state based on snapshot
-          if (snapshot.connectionState == ConnectionState.active ||
-              snapshot.connectionState == ConnectionState.done) {
-            if (snapshot.hasData) {
-              _courses = context.read<CourseProvider>().courses;
-              _loading = false;
-            }
-            if (snapshot.hasError) {
-              _error = snapshot.error.toString();
-              _loading = false;
-            }
-          }
+    if (user == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-          return NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              // ── App Bar ─────────────────────────────────────────
-              SliverAppBar(
-                expandedHeight: 140,
-                floating: false,
-                pinned: true,
-                snap: false,
-                forceElevated: innerBoxIsScrolled,
-                automaticallyImplyLeading: false,
-                backgroundColor: AppColors.primary,
-                surfaceTintColor: AppColors.primary,
-                actions: [
-                  IconButton(
-                    tooltip: 'Sign out',
-                    icon: const Icon(
-                      Icons.logout_rounded,
-                      color: AppColors.white,
-                    ),
-                    onPressed: () => _confirmSignOut(context),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  collapseMode: CollapseMode.pin,
-                  background: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary,
-                          Color(0xFF7C74FF),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+    return StreamBuilder<List<EnrollmentModel>>(
+      stream: _firestoreService.streamUserEnrollments(user.uid),
+      builder: (context, enrollmentsSnapshot) {
+        final enrollments = enrollmentsSnapshot.data ?? [];
+        final enrolledCount = enrollments.length;
+        final overallProgress = enrolledCount == 0
+            ? 0.0
+            : enrollments.fold<double>(0, (sum, e) => sum + e.progress) / enrolledCount;
+
+        return Scaffold(
+          backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+          body: StreamBuilder<List<CourseModel>>(
+            stream: _coursesStream,
+            builder: (context, snapshot) {
+              // Update local state based on snapshot
+              if (snapshot.connectionState == ConnectionState.active ||
+                  snapshot.connectionState == ConnectionState.done) {
+                if (snapshot.hasData) {
+                  _courses = context.read<CourseProvider>().courses;
+                  _loading = false;
+                }
+                if (snapshot.hasError) {
+                  _error = snapshot.error.toString();
+                  _loading = false;
+                }
+              }
+
+              return NestedScrollView(
+                headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                  // ── App Bar ─────────────────────────────────────────
+                  SliverAppBar(
+                    expandedHeight: 125,
+                    floating: false,
+                    pinned: true,
+                    snap: false,
+                    forceElevated: innerBoxIsScrolled,
+                    automaticallyImplyLeading: false,
+                    backgroundColor: AppColors.primary,
+                    surfaceTintColor: AppColors.primary,
+                    actions: [
+                      if (user.isAdmin) ...[
+                        IconButton(
+                          tooltip: 'Admin Panel',
+                          icon: const Icon(
+                            Icons.admin_panel_settings_rounded,
+                            color: AppColors.white,
+                          ),
+                          onPressed: () =>
+                              Navigator.of(context).pushNamed(AppRoutes.admin),
+                        ),
+                      ],
+                      IconButton(
+                        tooltip: 'My Profile',
+                        icon: const Icon(
+                          Icons.person_rounded,
+                          color: AppColors.white,
+                        ),
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed(AppRoutes.profile),
                       ),
-                    ),
-                    child: SafeArea(
-                      child: Padding(
-                        padding:
-                            const EdgeInsets.fromLTRB(20, 16, 80, 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Hello, $firstName 👋',
-                              style: GoogleFonts.poppins(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.white,
-                              ),
+                      IconButton(
+                        tooltip: 'Sign out',
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: AppColors.white,
+                        ),
+                        onPressed: () => _confirmSignOut(context),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    flexibleSpace: FlexibleSpaceBar(
+                      collapseMode: CollapseMode.pin,
+                      background: Container(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              AppColors.primary,
+                              Color(0xFF7C74FF),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 22,
+                                  backgroundColor: AppColors.white.withOpacity(0.18),
+                                  child: Text(
+                                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Hello, $firstName 👋',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.white.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'Level $enrolledCount Scholar',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                CircularPercentIndicator(
+                                  radius: 25.0,
+                                  lineWidth: 4.5,
+                                  percent: overallProgress,
+                                  center: Text(
+                                    "${(overallProgress * 100).toInt()}%",
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.white,
+                                    ),
+                                  ),
+                                  progressColor: AppColors.white,
+                                  backgroundColor: AppColors.white.withOpacity(0.2),
+                                  animation: true,
+                                  animationDuration: 800,
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'What will you learn today?',
-                              style: GoogleFonts.dmSans(
-                                fontSize: 13,
-                                color: AppColors.white.withOpacity(0.85),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ],
-            // ── Scrollable Body ────────────────────────────────────
-            body: _buildScrollBody(isDark, snapshot),
-          );
-        },
-      ),
+                ],
+                body: _buildScrollBody(isDark, snapshot, enrollments),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
   // ── Main Scroll Body ─────────────────────────────────────────────
   Widget _buildScrollBody(
-      bool isDark, AsyncSnapshot<List<CourseModel>> snapshot) {
+      bool isDark, AsyncSnapshot<List<CourseModel>> snapshot, List<EnrollmentModel> enrollments) {
     return CustomScrollView(
       slivers: [
         // Search bar
         SliverToBoxAdapter(child: _buildSearchBar(isDark)),
+
+        // Continue Learning Section
+        if (enrollments.isNotEmpty)
+          SliverToBoxAdapter(child: _buildContinueLearningSection(isDark, enrollments)),
 
         // Categories
         SliverToBoxAdapter(child: _buildCategoriesSection()),
@@ -165,6 +262,152 @@ class _HomeScreenState extends State<HomeScreen> {
         const SliverToBoxAdapter(child: SizedBox(height: 40)),
       ],
     );
+  }
+
+  // ── Continue Learning Horizontal Section ───────────────────────────
+  Widget _buildContinueLearningSection(bool isDark, List<EnrollmentModel> enrollments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+          child: Text(
+            'Continue Learning ⚡',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+        SizedBox(
+          height: 105,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: enrollments.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (_, i) {
+              final enrollment = enrollments[i];
+              // Look up course in memory from CourseProvider courses
+              final course = _courses.firstWhere(
+                (c) => c.id == enrollment.courseId,
+                orElse: () => CourseModel(
+                  id: enrollment.courseId,
+                  title: 'Loading course...',
+                  description: '',
+                  imageUrl: '',
+                  instructorName: '',
+                  createdAt: DateTime.now(),
+                ),
+              );
+
+              return GestureDetector(
+                onTap: () {
+                  if (course.title != 'Loading course...') {
+                    Navigator.of(context).pushNamed(
+                      AppRoutes.courseDetail,
+                      arguments: course,
+                    );
+                  }
+                },
+                child: Container(
+                  width: 220,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.cardDark : AppColors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: course.imageUrl.isNotEmpty
+                            ? Image.network(
+                                course.imageUrl,
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                width: 50,
+                                height: 50,
+                                color: AppColors.primary.withOpacity(0.1),
+                                child: const Icon(Icons.school_rounded, color: AppColors.primary, size: 24),
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              course.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? AppColors.white : AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'by ${course.instructorName}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.dmSans(
+                                fontSize: 10,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: LinearProgressIndicator(
+                                      value: enrollment.progress,
+                                      minHeight: 4,
+                                      backgroundColor: isDark
+                                          ? AppColors.borderDark
+                                          : AppColors.borderLight,
+                                      valueColor: const AlwaysStoppedAnimation(AppColors.success),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${(enrollment.progress * 100).toInt()}%',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    ).animate().fadeIn(duration: 400.ms, delay: 200.ms);
   }
 
   // ── Search Bar ───────────────────────────────────────────────────
@@ -360,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisCount: 2,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
-            childAspectRatio: 0.65,
+            childAspectRatio: 0.52,
           ),
         ),
       );
@@ -429,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisCount: 2,
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
-          childAspectRatio: 0.65,
+          childAspectRatio: 0.52,
         ),
       ),
     );

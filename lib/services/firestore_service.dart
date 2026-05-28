@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/course_model.dart';
 import '../models/lesson_model.dart';
 import '../models/enrollment_model.dart';
+import '../models/user_model.dart';
 
 /// Single point of access for all Firestore operations.
 /// Screens and providers call this service — never FirebaseFirestore directly.
@@ -10,10 +11,10 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // ── Collection references ──────────────────────────────────────────────────
-  CollectionReference get _courses     => _db.collection('courses');
-  CollectionReference get _lessons     => _db.collection('lessons');
+  CollectionReference get _courses => _db.collection('courses');
+  CollectionReference get _lessons => _db.collection('lessons');
   CollectionReference get _enrollments => _db.collection('enrollments');
-  CollectionReference get _quizzes     => _db.collection('quizzes');
+  CollectionReference get _quizzes => _db.collection('quizzes');
 
   // ══════════════════════════════════════════════════════════════════════════
   // COURSES
@@ -21,11 +22,10 @@ class FirestoreService {
 
   /// Stream of ALL courses (used by Home screen).
   Stream<List<CourseModel>> streamAllCourses() {
-    return _courses
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+    return _courses.orderBy('createdAt', descending: true).snapshots().map(
+        (snap) => snap.docs
+            .map((d) =>
+                CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
             .toList());
   }
 
@@ -36,17 +36,17 @@ class FirestoreService {
         .limit(6)
         .snapshots()
         .map((snap) => snap.docs
-            .map((d) => CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+            .map((d) =>
+                CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
             .toList());
   }
 
   /// Stream of courses filtered by category.
   Stream<List<CourseModel>> streamCoursesByCategory(String category) {
-    return _courses
-        .where('category', isEqualTo: category)
-        .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+    return _courses.where('category', isEqualTo: category).snapshots().map(
+        (snap) => snap.docs
+            .map((d) =>
+                CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
             .toList());
   }
 
@@ -68,7 +68,8 @@ class FirestoreService {
         .orderBy('order')
         .snapshots()
         .map((snap) => snap.docs
-            .map((d) => LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+            .map((d) =>
+                LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
             .toList());
   }
 
@@ -116,7 +117,8 @@ class FirestoreService {
         .map((snap) {
       if (snap.docs.isEmpty) return null;
       final doc = snap.docs.first;
-      return EnrollmentModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      return EnrollmentModel.fromMap(
+          doc.data() as Map<String, dynamic>, doc.id);
     });
   }
 
@@ -168,12 +170,109 @@ class FirestoreService {
 
   /// Stream all enrollments for a user (used by Profile screen).
   Stream<List<EnrollmentModel>> streamUserEnrollments(String userId) {
-    return _enrollments
-        .where('userId', isEqualTo: userId)
-        .snapshots()
-        .map((snap) => snap.docs
+    return _enrollments.where('userId', isEqualTo: userId).snapshots().map(
+        (snap) => snap.docs
             .map((d) =>
                 EnrollmentModel.fromMap(d.data() as Map<String, dynamic>, d.id))
             .toList());
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ADMIN OPERATIONS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Fetch user profile details.
+  Future<UserModel?> fetchUser(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists) return null;
+    return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  /// Add a new course.
+  Future<void> addCourse(CourseModel course) async {
+    await _courses.doc(course.id).set(course.toMap());
+  }
+
+  /// Delete a course and all associated lessons, quizzes, and enrollments.
+  Future<void> deleteCourse(String courseId) async {
+    // 1. Delete course document
+    await _courses.doc(courseId).delete();
+
+    // 2. Delete lessons associated with this course
+    final lessonsSnap =
+        await _lessons.where('courseId', isEqualTo: courseId).get();
+    for (var doc in lessonsSnap.docs) {
+      await doc.reference.delete();
+    }
+
+    // 3. Delete quizzes associated with this course
+    final quizzesSnap =
+        await _quizzes.where('courseId', isEqualTo: courseId).get();
+    for (var doc in quizzesSnap.docs) {
+      await doc.reference.delete();
+    }
+
+    // 4. Delete enrollments associated with this course
+    final enrollmentsSnap =
+        await _enrollments.where('courseId', isEqualTo: courseId).get();
+    for (var doc in enrollmentsSnap.docs) {
+      await doc.reference.delete();
+    }
+  }
+
+  /// Stream all enrollments for a specific course.
+  Stream<List<EnrollmentModel>> streamCourseEnrollments(String courseId) {
+    return _enrollments.where('courseId', isEqualTo: courseId).snapshots().map(
+        (snap) => snap.docs
+            .map((d) =>
+                EnrollmentModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+            .toList());
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // TEACHER & ADDITIONAL ADMIN OPERATIONS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Stream all courses for a specific teacher.
+  Stream<List<CourseModel>> streamTeacherCourses(String instructorName) {
+    return _courses
+        .where('instructorName', isEqualTo: instructorName)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) =>
+                CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+            .toList());
+  }
+
+  /// Stream all users.
+  Stream<List<UserModel>> streamUsers() {
+    return _db.collection('users').snapshots().map((snap) =>
+        snap.docs.map((d) => UserModel.fromMap(d.data(), d.id)).toList());
+  }
+
+  /// Update a user's role.
+  Future<void> updateUserRole(String uid, String newRole) async {
+    await _db.collection('users').doc(uid).update({'role': newRole});
+  }
+
+  /// Toggle feature flag for a course.
+  Future<void> toggleCourseFeatured(String courseId, bool isFeatured) async {
+    await _courses.doc(courseId).update({'isFeatured': isFeatured});
+  }
+
+  /// Aggregate counts for analytics
+  Future<int> countUsers() async {
+    final snap = await _db.collection('users').count().get();
+    return snap.count ?? 0;
+  }
+
+  Future<int> countCourses() async {
+    final snap = await _courses.count().get();
+    return snap.count ?? 0;
+  }
+
+  Future<int> countEnrollments() async {
+    final snap = await _enrollments.count().get();
+    return snap.count ?? 0;
   }
 }

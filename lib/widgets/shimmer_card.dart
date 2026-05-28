@@ -1,7 +1,6 @@
 // lib/widgets/shimmer_card.dart
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../core/constants/app_colors.dart';
 
 /// Animated shimmer placeholder shown while courses are loading.
 class ShimmerCourseCard extends StatelessWidget {
@@ -10,8 +9,8 @@ class ShimmerCourseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final base  = isDark ? const Color(0xFF2A2A4A) : const Color(0xFFE8E8F0);
-    final high  = isDark ? const Color(0xFF3A3A5A) : const Color(0xFFF5F5F5);
+    final base = isDark ? const Color(0xFF2A2A4A) : const Color(0xFFE8E8F0);
+    final high = isDark ? const Color(0xFF3A3A5A) : const Color(0xFFF5F5F5);
 
     return Shimmer.fromColors(
       baseColor: base,
@@ -35,17 +34,17 @@ class ShimmerCourseCard extends StatelessWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(14),
+            const Padding(
+              padding: EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _Box(width: 60, height: 18),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   _Box(width: double.infinity, height: 14),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6),
                   _Box(width: 140, height: 14),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   _Box(width: 100, height: 12),
                 ],
               ),

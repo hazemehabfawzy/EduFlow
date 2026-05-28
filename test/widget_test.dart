@@ -1,30 +1,57 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:project/main.dart';
+import 'package:eduflow/widgets/gradient_button.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('GradientButton Widget Tests', () {
+    testWidgets('renders button with label and icon', (WidgetTester tester) async {
+      bool pressed = false;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GradientButton(
+              label: 'Submit Course',
+              icon: const Icon(Icons.check, color: Colors.white),
+              onPressed: () {
+                pressed = true;
+              },
+            ),
+          ),
+        ),
+      );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      // Verify button label is rendered
+      expect(find.text('Submit Course'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      // Verify icon is rendered
+      expect(find.byIcon(Icons.check), findsOneWidget);
+
+      // Tap the button and verify onPressed is called
+      await tester.tap(find.text('Submit Course'));
+      await tester.pump();
+
+      expect(pressed, isTrue);
+    });
+
+    testWidgets('renders loading indicator when isLoading is true', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: GradientButton(
+              label: 'Submit Course',
+              isLoading: true,
+            ),
+          ),
+        ),
+      );
+
+      // Verify button label is not visible/rendered
+      expect(find.text('Submit Course'), findsNothing);
+
+      // Verify circular progress indicator is rendered
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    });
   });
 }
+

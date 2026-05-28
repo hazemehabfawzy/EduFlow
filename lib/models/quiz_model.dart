@@ -1,15 +1,14 @@
 // lib/models/quiz_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// One quiz question stored under /quizzes/{quizId}.
 class QuizModel {
   final String id;
   final String courseId;
   final String question;
-  final List<String> options;    // exactly 4 options
-  final int correctAnswer;       // 0-based index into [options]
+  final List<String> options; // exactly 4 options
+  final int correctAnswer; // 0-based index into [options]
   final int order;
-  final String? explanation;     // shown after answering
+  final String? explanation; // shown after answering
 
   const QuizModel({
     required this.id,
@@ -34,11 +33,11 @@ class QuizModel {
   }
 
   Map<String, dynamic> toMap() => {
-    'courseId': courseId,
-    'question': question,
-    'options': options,
-    'correctAnswer': correctAnswer,
-    'order': order,
-    'explanation': explanation,
-  };
+        'courseId': courseId,
+        'question': question,
+        'options': options,
+        'correctAnswer': correctAnswer,
+        'order': order,
+        'explanation': explanation,
+      };
 }

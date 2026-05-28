@@ -1,4 +1,4 @@
-package com.example.project
+package com.example.eduflow
 
 import io.flutter.embedding.android.FlutterActivity
 

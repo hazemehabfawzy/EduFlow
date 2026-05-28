@@ -1,4 +1,5 @@
 // lib/screens/auth/auth_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,26 +26,36 @@ class _AuthScreenState extends State<AuthScreen>
   late final TabController _tabController;
 
   // ── Login controllers ───────────────────────────────────────────────────
-  final _loginFormKey   = GlobalKey<FormState>();
-  final _loginEmail     = TextEditingController();
-  final _loginPassword  = TextEditingController();
+  final _loginFormKey = GlobalKey<FormState>();
+  final _loginEmail = TextEditingController();
+  final _loginPassword = TextEditingController();
 
   // ── Register controllers ────────────────────────────────────────────────
-  final _registerFormKey      = GlobalKey<FormState>();
-  final _registerName         = TextEditingController();
-  final _registerEmail        = TextEditingController();
-  final _registerPassword     = TextEditingController();
-  final _registerConfirmPass  = TextEditingController();
+  final _registerFormKey = GlobalKey<FormState>();
+  final _registerName = TextEditingController();
+  final _registerEmail = TextEditingController();
+  final _registerPassword = TextEditingController();
+  final _registerConfirmPass = TextEditingController();
 
   // ── Focus nodes ─────────────────────────────────────────────────────────
-  final _loginPasswordFocus    = FocusNode();
-  final _registerEmailFocus    = FocusNode();
+  final _loginPasswordFocus = FocusNode();
+  final _registerEmailFocus = FocusNode();
   final _registerPasswordFocus = FocusNode();
-  final _registerConfirmFocus  = FocusNode();
+  final _registerConfirmFocus = FocusNode();
+
+  Timer? _gradientTimer;
+  int _colorIndex = 0;
+  final List<List<Color>> _gradientColors = [
+    [AppColors.primary, const Color(0xFF7C74FF)],
+    [const Color(0xFF7C74FF), AppColors.accent],
+    [AppColors.accent, AppColors.primary],
+  ];
 
   @override
   void initState() {
     super.initState();
+    _loginEmail.text = 'hazemehabsat@gamil.com';
+    _loginPassword.text = 'H123456';
     _tabController = TabController(length: 2, vsync: this);
     // Clear provider error when tab changes
     _tabController.addListener(() {
@@ -52,10 +63,19 @@ class _AuthScreenState extends State<AuthScreen>
         context.read<AuthProvider>().clearError();
       }
     });
+
+    _gradientTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (mounted) {
+        setState(() {
+          _colorIndex = (_colorIndex + 1) % _gradientColors.length;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _gradientTimer?.cancel();
     _tabController.dispose();
     _loginEmail.dispose();
     _loginPassword.dispose();
@@ -143,7 +163,7 @@ class _AuthScreenState extends State<AuthScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final size   = MediaQuery.of(context).size;
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       body: Stack(
@@ -228,30 +248,36 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   Widget _buildHeader(Size size) {
-    return SizedBox(
+    return AnimatedContainer(
+      duration: const Duration(seconds: 2),
       height: size.height * 0.35,
       width: double.infinity,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: AppColors.primaryGradient,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: _gradientColors[_colorIndex],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Stack(
-          children: [
-            // Decorative circles
-            Positioned(
-              top: -40, right: -40,
-              child: _Circle(size: 160, opacity: 0.12),
-            ),
-            Positioned(
-              top: 60, left: -30,
-              child: _Circle(size: 120, opacity: 0.08),
-            ),
-            Positioned(
-              bottom: 40, right: 60,
-              child: _Circle(size: 80, opacity: 0.1),
-            ),
-          ],
-        ),
+      ),
+      child: const Stack(
+        children: [
+          // Decorative circles
+          Positioned(
+            top: -40,
+            right: -40,
+            child: _Circle(size: 160, opacity: 0.12),
+          ),
+          Positioned(
+            top: 60,
+            left: -30,
+            child: _Circle(size: 120, opacity: 0.08),
+          ),
+          Positioned(
+            bottom: 40,
+            right: 60,
+            child: _Circle(size: 80, opacity: 0.1),
+          ),
+        ],
       ),
     );
   }
@@ -268,7 +294,8 @@ class _AuthScreenState extends State<AuthScreen>
             decoration: BoxDecoration(
               color: AppColors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.white.withOpacity(0.4), width: 1.5),
+              border: Border.all(
+                  color: AppColors.white.withOpacity(0.4), width: 1.5),
             ),
             child: const Icon(
               Icons.school_rounded,
@@ -278,7 +305,7 @@ class _AuthScreenState extends State<AuthScreen>
           ),
           const SizedBox(height: 12),
           Text(
-            'SkillNest',
+            'EduFlow',
             style: GoogleFonts.poppins(
               fontSize: 28,
               fontWeight: FontWeight.w700,
@@ -306,9 +333,7 @@ class _AuthScreenState extends State<AuthScreen>
       child: Container(
         height: 52,
         decoration: BoxDecoration(
-          color: isDark
-              ? AppColors.cardDark
-              : AppColors.surfaceLight,
+          color: isDark ? AppColors.cardDark : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(14),
         ),
         child: TabBar(
@@ -330,9 +355,8 @@ class _AuthScreenState extends State<AuthScreen>
             ],
           ),
           labelColor: AppColors.white,
-          unselectedLabelColor: isDark
-              ? const Color(0xFF6B7280)
-              : AppColors.textSecondary,
+          unselectedLabelColor:
+              isDark ? const Color(0xFF6B7280) : AppColors.textSecondary,
           labelStyle: GoogleFonts.poppins(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -443,9 +467,7 @@ class _LoginTab extends StatelessWidget {
                   ),
                 ),
               ),
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 200.ms),
+            ).animate().fadeIn(duration: 400.ms, delay: 200.ms),
 
             const SizedBox(height: 8),
 
@@ -459,9 +481,17 @@ class _LoginTab extends StatelessWidget {
                 .fadeIn(duration: 400.ms, delay: 250.ms)
                 .slideY(begin: 0.1),
 
-
-
-
+            const SizedBox(height: 20),
+            _OrDivider().animate().fadeIn(duration: 400.ms, delay: 280.ms),
+            const SizedBox(height: 16),
+            _SocialButton(
+              label: 'Continue with Google',
+              icon: Icons.g_mobiledata_rounded,
+              onTap: () {},
+            )
+                .animate()
+                .fadeIn(duration: 400.ms, delay: 300.ms)
+                .slideY(begin: 0.1),
           ],
         ),
       ),
@@ -594,10 +624,22 @@ class _RegisterTab extends StatelessWidget {
               label: 'Create Account',
               isLoading: auth.isLoading,
               onPressed: auth.isLoading ? null : onRegister,
-              gradientColors: [AppColors.secondary, AppColors.primary],
+              gradientColors: const [AppColors.secondary, AppColors.primary],
             )
                 .animate()
                 .fadeIn(duration: 400.ms, delay: 320.ms)
+                .slideY(begin: 0.1),
+
+            const SizedBox(height: 20),
+            _OrDivider().animate().fadeIn(duration: 400.ms, delay: 340.ms),
+            const SizedBox(height: 16),
+            _SocialButton(
+              label: 'Continue with Google',
+              icon: Icons.g_mobiledata_rounded,
+              onTap: () {},
+            )
+                .animate()
+                .fadeIn(duration: 400.ms, delay: 360.ms)
                 .slideY(begin: 0.1),
           ],
         ),
@@ -634,11 +676,13 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
     setState(() => _loading = true);
 
     try {
-      final msg = await context
-          .read<AuthProvider>()
-          .sendPasswordReset(_emailCtrl.text);
+      final msg =
+          await context.read<AuthProvider>().sendPasswordReset(_emailCtrl.text);
       if (!mounted) return;
-      setState(() { _sent = true; _loading = false; });
+      setState(() {
+        _sent = true;
+        _loading = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -666,7 +710,8 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
         children: [
           // Handle bar
           Container(
-            width: 40, height: 4,
+            width: 40,
+            height: 4,
             decoration: BoxDecoration(
               color: AppColors.textHint,
               borderRadius: BorderRadius.circular(2),
@@ -677,7 +722,8 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
           if (_sent) ...[
             // ── Success state ───────────────────────────────────────────
             Container(
-              width: 72, height: 72,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
                 color: AppColors.success.withOpacity(0.12),
                 shape: BoxShape.circle,

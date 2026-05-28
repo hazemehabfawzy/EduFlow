@@ -1,5 +1,4 @@
 // lib/models/lesson_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Represents a lesson document in Firestore under /lessons/{lessonId}.
 class LessonModel {
@@ -8,9 +7,9 @@ class LessonModel {
   final String title;
   final String videoUrl;
   final String notes;
-  final int order;           // position in the course (1, 2, 3 …)
+  final int order; // position in the course (1, 2, 3 …)
   final int durationMinutes;
-  final bool isPreview;      // free preview without enrollment
+  final bool isPreview; // free preview without enrollment
 
   const LessonModel({
     required this.id,
@@ -37,14 +36,14 @@ class LessonModel {
   }
 
   Map<String, dynamic> toMap() => {
-    'courseId': courseId,
-    'title': title,
-    'videoUrl': videoUrl,
-    'notes': notes,
-    'order': order,
-    'durationMinutes': durationMinutes,
-    'isPreview': isPreview,
-  };
+        'courseId': courseId,
+        'title': title,
+        'videoUrl': videoUrl,
+        'notes': notes,
+        'order': order,
+        'durationMinutes': durationMinutes,
+        'isPreview': isPreview,
+      };
 
   String get formattedDuration {
     if (durationMinutes == 0) return '';

@@ -51,8 +51,7 @@ class _LessonScreenState extends State<LessonScreen> {
     return _lessons[idx - 1];
   }
 
-  int get _currentIndex =>
-      _lessons.indexWhere((l) => l.id == _lesson.id) + 1;
+  int get _currentIndex => _lessons.indexWhere((l) => l.id == _lesson.id) + 1;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +59,7 @@ class _LessonScreenState extends State<LessonScreen> {
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+      endDrawer: _buildLessonDrawer(isDark),
       body: Column(
         children: [
           _buildHeader(isDark),
@@ -96,7 +96,7 @@ class _LessonScreenState extends State<LessonScreen> {
                     ),
                   ),
                 ),
-                if (_lesson.formattedDuration.isNotEmpty)
+                if (_lesson.formattedDuration.isNotEmpty) ...[
                   Row(children: [
                     const Icon(Icons.access_time_rounded,
                         color: AppColors.textHint, size: 14),
@@ -107,6 +107,18 @@ class _LessonScreenState extends State<LessonScreen> {
                           fontSize: 12, color: AppColors.textHint),
                     ),
                   ]),
+                  const SizedBox(width: 12),
+                ],
+                Builder(
+                  builder: (context) {
+                    return IconButton(
+                      icon: const Icon(Icons.playlist_play_rounded,
+                          size: 24, color: AppColors.primary),
+                      onPressed: () => Scaffold.of(context).openEndDrawer(),
+                      tooltip: 'Show Lessons Outline',
+                    );
+                  },
+                ),
               ]),
             ),
 
@@ -125,9 +137,7 @@ class _LessonScreenState extends State<LessonScreen> {
 
             // Progress bar
             LinearProgressIndicator(
-              value: _lessons.isEmpty
-                  ? 0.0
-                  : _currentIndex / _lessons.length,
+              value: _lessons.isEmpty ? 0.0 : _currentIndex / _lessons.length,
               backgroundColor: AppColors.primary.withOpacity(0.1),
               valueColor: const AlwaysStoppedAnimation(AppColors.primary),
               minHeight: 3,
@@ -206,9 +216,8 @@ class _LessonScreenState extends State<LessonScreen> {
               style: GoogleFonts.dmSans(
                 fontSize: 15,
                 height: 1.8,
-                color: isDark
-                    ? const Color(0xFFB0B8C4)
-                    : AppColors.textSecondary,
+                color:
+                    isDark ? const Color(0xFFB0B8C4) : AppColors.textSecondary,
               ),
             ),
           ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.05),
@@ -361,17 +370,16 @@ class _LessonScreenState extends State<LessonScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: [
-          const Icon(Icons.check_circle_outline, color: AppColors.success),
-          const SizedBox(width: 10),
-          const Text('Lesson marked as completed!'),
+        content: const Row(children: [
+          Icon(Icons.check_circle_outline, color: AppColors.success),
+          SizedBox(width: 10),
+          Text('Lesson marked as completed!'),
         ]),
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? AppColors.cardDark
             : AppColors.white,
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
       ));
       if (_nextLesson != null) {
@@ -380,10 +388,142 @@ class _LessonScreenState extends State<LessonScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     } finally {
       if (mounted) setState(() => _isMarkingComplete = false);
     }
+  }
+
+  Widget _buildLessonDrawer(bool isDark) {
+    return Drawer(
+      backgroundColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Lessons Outline 📚',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppColors.white : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Jump between course lectures',
+                    style: GoogleFonts.dmSans(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.separated(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                itemCount: _lessons.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final lesson = _lessons[index];
+                  final isCurrent = lesson.id == _lesson.id;
+                  final isCompleted =
+                      _enrollment?.completedLessonIds.contains(lesson.id) ??
+                          false;
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? AppColors.primary.withOpacity(0.08)
+                          : isDark
+                              ? AppColors.cardDark
+                              : AppColors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isCurrent
+                            ? AppColors.primary
+                            : isDark
+                                ? AppColors.borderDark
+                                : AppColors.borderLight,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      leading: CircleAvatar(
+                        radius: 12,
+                        backgroundColor: isCurrent
+                            ? AppColors.primary
+                            : AppColors.textHint.withOpacity(0.15),
+                        child: Text(
+                          (index + 1).toString(),
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isCurrent
+                                ? AppColors.white
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        lesson.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight:
+                              isCurrent ? FontWeight.bold : FontWeight.w500,
+                          color: isCurrent
+                              ? AppColors.primary
+                              : isDark
+                                  ? AppColors.white
+                                  : AppColors.textPrimary,
+                        ),
+                      ),
+                      subtitle: Text(
+                        lesson.formattedDuration,
+                        style: GoogleFonts.dmSans(
+                            fontSize: 10, color: AppColors.textSecondary),
+                      ),
+                      trailing: isCompleted
+                          ? const Icon(Icons.check_circle_rounded,
+                              color: AppColors.success, size: 18)
+                          : const Icon(Icons.radio_button_unchecked_rounded,
+                              color: AppColors.textHint, size: 18),
+                      onTap: () {
+                        Navigator.of(context).pop(); // Close drawer
+                        if (!isCurrent) {
+                          Navigator.of(context).pushReplacementNamed(
+                            AppRoutes.lesson,
+                            arguments: {
+                              'lesson': lesson,
+                              'lessons': _lessons,
+                              'enrollment': _enrollment,
+                              'courseId': _courseId,
+                            },
+                          );
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
