@@ -43,12 +43,13 @@ class AuthProvider extends ChangeNotifier {
     required String name,
     required String email,
     required String password,
+    required String role,
   }) async {
     _clearError();
     _setLoading(true);
     try {
       _currentUser = await _authService.signUp(
-        name: name, email: email, password: password,
+        name: name, email: email, password: password, role: role,
       );
       notifyListeners();
       return true;

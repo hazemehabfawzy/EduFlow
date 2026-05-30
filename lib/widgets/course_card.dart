@@ -34,9 +34,11 @@ class CourseCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(isDark ? 0.08 : 0.07),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
+              color: isDark
+                  ? Colors.black.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.10), // stronger shadow in light
+              blurRadius: isDark ? 20 : 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -54,11 +56,38 @@ class CourseCard extends StatelessWidget {
                     borderRadius:
                         const BorderRadius.vertical(top: Radius.circular(20)),
                     child: AspectRatio(
-                      aspectRatio: 16 / 9,
+                      aspectRatio: 16 / 7,
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
                           _CourseThumbnail(imageUrl: course.imageUrl),
+                          // Add gradient overlay at bottom of thumbnail
+                          Positioned(
+                            bottom: 0, left: 0, right: 0,
+                            child: Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [Colors.transparent, Colors.black.withOpacity(0.4)],
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Move level badge ONTO the thumbnail (bottom-left) to save info-section space
+                          Positioned(
+                            bottom: 6, left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: levelColor.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(course.level,
+                                style: GoogleFonts.poppins(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ),
+                          ),
                           // "Popular" badge overlay
                           if (course.totalStudents > 500)
                             Positioned(
@@ -103,7 +132,7 @@ class CourseCard extends StatelessWidget {
 
                   // ── Info ──────────────────────────────────────────────────
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -111,7 +140,7 @@ class CourseCard extends StatelessWidget {
                         // Category chip
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                              horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(6),
@@ -119,105 +148,76 @@ class CourseCard extends StatelessWidget {
                           child: Text(
                             course.category,
                             style: GoogleFonts.poppins(
-                              fontSize: 9,
+                              fontSize: 8,
                               fontWeight: FontWeight.w600,
                               color: AppColors.primary,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
 
                         // Title
                         Text(
                           course.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          // reduce font size to 11 to fit in 2 lines on narrow grid columns
                           style: GoogleFonts.poppins(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: isDark
                                 ? AppColors.white
                                 : AppColors.textPrimary,
-                            height: 1.4,
+                            height: 1.25,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
 
                         // Instructor
                         Row(
                           children: [
                             const Icon(Icons.person_outline_rounded,
-                                size: 13, color: AppColors.textHint),
-                            const SizedBox(width: 4),
+                                size: 10, color: AppColors.textHint),
+                            const SizedBox(width: 3),
                             Expanded(
                               child: Text(
                                 course.instructorName,
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.dmSans(
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   color: AppColors.textSecondary,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
 
                         // Rating + lessons + level badge row
                         Row(
                           children: [
-                            // Left stats – shrink if card is narrow
-                            Flexible(
-                              fit: FlexFit.tight,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.star_rounded,
-                                      color: AppColors.warning, size: 14),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    course.rating.toStringAsFixed(1),
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.warning,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Icon(Icons.play_circle_outline_rounded,
-                                      size: 13, color: AppColors.textHint),
-                                  const SizedBox(width: 3),
-                                  Flexible(
-                                    child: Text(
-                                      '${course.totalLessons} less.',
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.dmSans(
-                                        fontSize: 10,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                            const Icon(Icons.star_rounded,
+                                color: AppColors.warning, size: 11),
+                            const SizedBox(width: 2),
+                            Text(
+                              course.rating.toStringAsFixed(1),
+                              style: GoogleFonts.poppins(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.warning,
                               ),
                             ),
-
-                            const SizedBox(width: 6),
-
-                            // Level badge – always visible, never expands
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: levelColor.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
+                            const SizedBox(width: 5),
+                            const Icon(Icons.play_circle_outline_rounded,
+                                size: 10, color: AppColors.textHint),
+                            const SizedBox(width: 2),
+                            Expanded(
                               child: Text(
-                                course.level,
+                                '${course.totalLessons} less.',
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                  color: levelColor,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 9,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ),

@@ -10,6 +10,7 @@ import 'core/constants/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/course_provider.dart';
+import 'providers/theme_provider.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/auth/auth_screen.dart';
 import 'screens/home/home_screen.dart';
@@ -21,30 +22,29 @@ import 'screens/teacher/teacher_dashboard_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'firebase_options.dart'; // ← Uncomment after `flutterfire configure`
 
-void main() async {
+void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-    // Offline persistence — mobile only (web uses IndexedDB automatically).
-    if (!kIsWeb) {
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-      );
-    }
+    // Prevent Firestore DNS failures from crashing the app
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
 
     runApp(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider()),
           ChangeNotifierProvider(create: (_) => CourseProvider()),
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ],
         child: const EduFlowApp(),
       ),
     );
   }, (error, stack) {
-    print(error);
+    print('[EduFlow] Unhandled error: $error');
   });
 }
 
@@ -55,16 +55,15 @@ class EduFlowApp extends StatefulWidget {
 }
 
 class _EduFlowAppState extends State<EduFlowApp> {
-  final ThemeMode _themeMode = ThemeMode.system;
-
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
     return MaterialApp(
       title: 'EduFlow',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: _themeMode,
+      themeMode: themeProvider.themeMode,
       initialRoute: AppRoutes.splash,
       routes: {
         AppRoutes.splash: (_) => const SplashScreen(),

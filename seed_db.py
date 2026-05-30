@@ -324,9 +324,9 @@ if __name__ == "__main__":
     # Create required bootstrap users first
     print("\n👤 Bootstrapping Auth & User Accounts...")
     create_user_if_not_exists(
-        email="admin@eduflow.app",
-        password="Admin@EduFlow2026",
-        name="EduFlow Admin",
+        email="hazemehabsat@gmail.com",
+        password="H123456",
+        name="Hazem Ehab",
         role="admin"
     )
     create_user_if_not_exists(

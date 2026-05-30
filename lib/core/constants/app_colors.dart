@@ -35,8 +35,8 @@ class AppColors {
   static const Color surfaceLight   = Color(0xFFF8F9FF);
   static const Color cardLight      = Color(0xFFFFFFFF);
   static const Color borderLight    = Color(0xFFE8E8F0);
-  static const Color textPrimary    = Color(0xFF1A1A2E);
-  static const Color textSecondary  = Color(0xFF6B7280);
+  static const Color textPrimary    = Color(0xFF0D0D0D);
+  static const Color textSecondary  = Color(0xFF4A5568);
   static const Color textHint       = Color(0xFFB0B8C4);
 
   // ── Dark surface ──────────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ import '../../services/firestore_service.dart';
 import '../../widgets/course_card.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/shimmer_card.dart';
+import '../../providers/theme_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -103,6 +104,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     backgroundColor: AppColors.primary,
                     surfaceTintColor: AppColors.primary,
                     actions: [
+                      IconButton(
+                        tooltip: 'Toggle Dark Mode',
+                        icon: Icon(
+                          context.watch<ThemeProvider>().isDark
+                              ? Icons.light_mode_rounded
+                              : Icons.dark_mode_rounded,
+                          color: AppColors.white,
+                        ),
+                        onPressed: () => context.read<ThemeProvider>().toggle(),
+                      ),
                       if (user.isAdmin) ...[
                         IconButton(
                           tooltip: 'Admin Panel',
@@ -271,13 +282,23 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-          child: Text(
-            'Continue Learning ⚡',
-            style: Theme.of(context).textTheme.titleLarge,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '⚡ Continue Learning',
+                style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+            ),
           ),
         ),
         SizedBox(
-          height: 105,
+          height: 90,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -414,50 +435,65 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchBar(bool isDark) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: TextField(
-        controller: _searchCtrl,
-        onChanged: (q) {
-          context.read<CourseProvider>().search(q);
-          setState(() {});
-        },
-        style: GoogleFonts.dmSans(
-          color: isDark ? AppColors.white : AppColors.textPrimary,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
-        decoration: InputDecoration(
-          hintText: 'Search courses, instructors…',
-          prefixIcon: const Icon(Icons.search_rounded, size: 20),
-          suffixIcon: _searchCtrl.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                  onPressed: () {
-                    _searchCtrl.clear();
-                    context.read<CourseProvider>().search('');
-                    setState(() {});
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: isDark ? AppColors.cardDark : AppColors.white,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-              width: 1.5,
-            ),
+        child: TextField(
+          controller: _searchCtrl,
+          onChanged: (q) {
+            context.read<CourseProvider>().search(q);
+            setState(() {});
+          },
+          style: GoogleFonts.dmSans(
+            color: isDark ? AppColors.white : AppColors.textPrimary,
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
-              width: 1.5,
+          decoration: InputDecoration(
+            hintText: 'Search courses, instructors…',
+            prefixIcon: const Icon(Icons.search_rounded, size: 20),
+            suffixIcon: _searchCtrl.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      context.read<CourseProvider>().search('');
+                      setState(() {});
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: Colors.transparent,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : const Color(0xFFCBD0DC),
+                width: 1.5,
+              ),
             ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide:
-                const BorderSide(color: AppColors.primary, width: 2),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: isDark ? AppColors.borderDark : const Color(0xFFCBD0DC),
+                width: 1.5,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide:
+                  const BorderSide(color: AppColors.primary, width: 2),
+            ),
           ),
         ),
       ),
@@ -526,13 +562,23 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-          child: Text(
-            '⭐  Featured',
-            style: Theme.of(context).textTheme.titleLarge,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '⭐ Featured',
+                style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+            ),
           ),
         ),
         SizedBox(
-          height: 250,
+          height: 240,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -540,7 +586,7 @@ class _HomeScreenState extends State<HomeScreen> {
             separatorBuilder: (_, __) => const SizedBox(width: 16),
             itemBuilder: (_, i) => CourseCard(
               course: featured[i],
-              width: 240,
+              width: 200,
               onTap: () => Navigator.of(context).pushNamed(
                 AppRoutes.courseDetail,
                 arguments: featured[i],
@@ -593,7 +639,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Loading shimmer
     if (snapshot.connectionState == ConnectionState.waiting) {
       return SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         sliver: SliverGrid(
           delegate: SliverChildBuilderDelegate(
             (_, __) => const ShimmerCourseCard(),
@@ -601,9 +647,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 0.48,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.75,
           ),
         ),
       );
@@ -647,7 +693,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Grid of courses
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       sliver: SliverGrid(
         delegate: SliverChildBuilderDelegate(
           (context, i) {
@@ -670,9 +716,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 0.48,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.75,
         ),
       ),
     );

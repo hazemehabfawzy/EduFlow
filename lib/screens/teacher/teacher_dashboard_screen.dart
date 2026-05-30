@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
+import '../../providers/theme_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../models/course_model.dart';
@@ -83,6 +84,16 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 backgroundColor: AppColors.primary,
                 surfaceTintColor: AppColors.primary,
                 actions: [
+                  IconButton(
+                    tooltip: 'Toggle Dark Mode',
+                    icon: Icon(
+                      context.watch<ThemeProvider>().isDark
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
+                      color: AppColors.white,
+                    ),
+                    onPressed: () => context.read<ThemeProvider>().toggle(),
+                  ),
                   IconButton(
                     tooltip: 'Sign out',
                     icon: const Icon(Icons.logout_rounded,

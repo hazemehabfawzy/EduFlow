@@ -10,6 +10,7 @@ import '../../models/course_model.dart';
 import '../../models/enrollment_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
+import '../../providers/theme_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -48,6 +49,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Toggle Dark Mode',
+            icon: Icon(
+              context.watch<ThemeProvider>().isDark
+                  ? Icons.light_mode_rounded
+                  : Icons.dark_mode_rounded,
+              color: AppColors.white,
+            ),
+            onPressed: () => context.read<ThemeProvider>().toggle(),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: StreamBuilder<List<EnrollmentModel>>(
         stream: _firestoreService.streamUserEnrollments(user.uid),
@@ -155,14 +169,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
                     decoration: BoxDecoration(
-                      color: isDark ? AppColors.cardDark : AppColors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                        width: 1.5,
-                      ),
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.black.withOpacity(0.02),
@@ -171,15 +180,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         )
                       ],
                     ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatItem('Enrolled', enrolledCount.toString(), isDark),
-                        _buildStatDivider(isDark),
-                        _buildStatItem('Completed', '$completedLessons less.', isDark),
-                        _buildStatDivider(isDark),
-                        _buildStatItem('Avg. Progress', '${(avgProgress * 100).toInt()}%', isDark),
-                      ],
+                    padding: const EdgeInsets.all(2), // acts as gradient border width
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStatItem('Enrolled', enrolledCount.toString(), isDark),
+                          _buildStatDivider(isDark),
+                          _buildStatItem('Completed', '$completedLessons less.', isDark),
+                          _buildStatDivider(isDark),
+                          _buildStatItem('Avg. Progress', '${(avgProgress * 100).toInt()}%', isDark),
+                        ],
+                      ),
                     ),
                   ),
                 ),

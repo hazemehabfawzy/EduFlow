@@ -110,7 +110,7 @@ class _AuthScreenState extends State<AuthScreen>
     }
   }
 
-  Future<void> _register() async {
+  Future<void> _register(String role) async {
     if (!_registerFormKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
@@ -119,6 +119,7 @@ class _AuthScreenState extends State<AuthScreen>
       name: _registerName.text,
       email: _registerEmail.text,
       password: _registerPassword.text,
+      role: role,
     );
 
     if (!mounted) return;
@@ -277,6 +278,8 @@ class _AuthScreenState extends State<AuthScreen>
             right: 60,
             child: _Circle(size: 80, opacity: 0.1),
           ),
+          Positioned(bottom: 30, left: 40, child: _Circle(size: 60, opacity: 0.07)),
+          Positioned(top: 100, right: 80, child: _Circle(size: 90, opacity: 0.06)),
         ],
       ),
     );
@@ -503,7 +506,7 @@ class _LoginTab extends StatelessWidget {
 // REGISTER TAB
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _RegisterTab extends StatelessWidget {
+class _RegisterTab extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController nameCtrl;
   final TextEditingController emailCtrl;
@@ -512,7 +515,7 @@ class _RegisterTab extends StatelessWidget {
   final FocusNode emailFocus;
   final FocusNode passwordFocus;
   final FocusNode confirmFocus;
-  final VoidCallback onRegister;
+  final Function(String role) onRegister;
 
   const _RegisterTab({
     required this.formKey,
@@ -527,13 +530,21 @@ class _RegisterTab extends StatelessWidget {
   });
 
   @override
+  State<_RegisterTab> createState() => _RegisterTabState();
+}
+
+class _RegisterTabState extends State<_RegisterTab> {
+  // Add this state variable to _AuthScreenState / _RegisterTabState:
+  String _selectedRole = 'student';
+
+  @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
       child: Form(
-        key: formKey,
+        key: widget.formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -552,10 +563,10 @@ class _RegisterTab extends StatelessWidget {
             CustomTextField(
               label: 'Full Name',
               hint: 'John Doe',
-              controller: nameCtrl,
+              controller: widget.nameCtrl,
               prefixIcon: Icons.person_outline_rounded,
               textInputAction: TextInputAction.next,
-              onEditingComplete: () => emailFocus.requestFocus(),
+              onEditingComplete: () => widget.emailFocus.requestFocus(),
               validator: Validators.fullName,
             )
                 .animate()
@@ -568,12 +579,12 @@ class _RegisterTab extends StatelessWidget {
             CustomTextField(
               label: 'Email Address',
               hint: 'you@example.com',
-              controller: emailCtrl,
+              controller: widget.emailCtrl,
               prefixIcon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
-              focusNode: emailFocus,
+              focusNode: widget.emailFocus,
               textInputAction: TextInputAction.next,
-              onEditingComplete: () => passwordFocus.requestFocus(),
+              onEditingComplete: () => widget.passwordFocus.requestFocus(),
               validator: Validators.email,
             )
                 .animate()
@@ -586,12 +597,12 @@ class _RegisterTab extends StatelessWidget {
             CustomTextField(
               label: 'Password',
               hint: '••••••••',
-              controller: passwordCtrl,
+              controller: widget.passwordCtrl,
               prefixIcon: Icons.lock_outline_rounded,
               isPassword: true,
-              focusNode: passwordFocus,
+              focusNode: widget.passwordFocus,
               textInputAction: TextInputAction.next,
-              onEditingComplete: () => confirmFocus.requestFocus(),
+              onEditingComplete: () => widget.confirmFocus.requestFocus(),
               validator: Validators.password,
             )
                 .animate()
@@ -604,26 +615,71 @@ class _RegisterTab extends StatelessWidget {
             CustomTextField(
               label: 'Confirm Password',
               hint: '••••••••',
-              controller: confirmPasswordCtrl,
+              controller: widget.confirmPasswordCtrl,
               prefixIcon: Icons.lock_outline_rounded,
               isPassword: true,
-              focusNode: confirmFocus,
+              focusNode: widget.confirmFocus,
               textInputAction: TextInputAction.done,
-              onEditingComplete: onRegister,
+              onEditingComplete: () => widget.onRegister(_selectedRole),
               validator: (v) =>
-                  Validators.confirmPassword(v, passwordCtrl.text),
+                  Validators.confirmPassword(v, widget.passwordCtrl.text),
             )
                 .animate()
                 .fadeIn(duration: 400.ms, delay: 250.ms)
                 .slideX(begin: 0.05),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
+
+            // Add this widget inside _RegisterTab above the submit button:
+            Row(
+              children: ['student', 'teacher'].map((role) {
+                final isSelected = _selectedRole == role;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedRole = role),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : AppColors.borderLight,
+                          width: 2,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            role == 'teacher' ? Icons.school_rounded : Icons.person_rounded,
+                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            role == 'teacher' ? 'Teacher' : 'Student',
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              color: isSelected ? Colors.white : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            )
+                .animate()
+                .fadeIn(duration: 400.ms, delay: 280.ms)
+                .slideX(begin: 0.05),
+
+            const SizedBox(height: 20),
 
             // Create account button
             GradientButton(
               label: 'Create Account',
               isLoading: auth.isLoading,
-              onPressed: auth.isLoading ? null : onRegister,
+              onPressed: auth.isLoading ? null : () => widget.onRegister(_selectedRole),
               gradientColors: const [AppColors.secondary, AppColors.primary],
             )
                 .animate()

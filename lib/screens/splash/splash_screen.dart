@@ -52,11 +52,11 @@ class _SplashScreenState extends State<SplashScreen>
     final auth = context.read<AuthProvider>();
     if (!auth.isAuthenticated) {
       Navigator.of(context).pushReplacementNamed(AppRoutes.auth);
-    } else if (auth.currentUser!.isAdmin) {
-      Navigator.of(context).pushReplacementNamed(AppRoutes.admin);
     } else if (auth.currentUser!.isTeacher) {
       Navigator.of(context).pushReplacementNamed(AppRoutes.teacherDashboard);
     } else {
+      // Both admin and student land on HomeScreen.
+      // Admin sees the admin panel button in the AppBar.
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
     }
   }

@@ -25,8 +25,12 @@ class AuthService {
     required String name,
     required String email,
     required String password,
+    required String role, // NEW PARAMETER
   }) async {
     try {
+      // role must be 'student' or 'teacher' only — never 'admin'
+      final safeRole = (role == 'teacher') ? 'teacher' : 'student';
+
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
@@ -42,7 +46,7 @@ class AuthService {
         uid: user.uid,
         name: name.trim(),
         email: email.trim(),
-        role: 'student',
+        role: safeRole, // use safeRole not raw input
         createdAt: DateTime.now(),
       );
 
@@ -71,7 +75,16 @@ class AuthService {
       );
 
       final user = credential.user!;
-      return await _fetchUserModel(user.uid);
+      final userModel = await _fetchUserModel(user.uid);
+
+      // Only this exact email can have admin role
+      const String adminEmail = 'hazemehabsat@gmail.com';
+
+      if (userModel.role == 'admin' && userModel.email != adminEmail) {
+        throw Exception('Unauthorized: This account does not have admin privileges.');
+      }
+
+      return userModel;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e) {

@@ -19,7 +19,7 @@ class AppTheme {
         surface: AppColors.surfaceLight,
         error: AppColors.error,
       ),
-      scaffoldBackgroundColor: AppColors.surfaceLight,
+      scaffoldBackgroundColor: const Color(0xFFF0F2F5),
 
       // Typography — Poppins for display, DM Sans for body
       textTheme: GoogleFonts.poppinsTextTheme().copyWith(
@@ -85,12 +85,12 @@ class AppTheme {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide:
-              const BorderSide(color: AppColors.borderLight, width: 1.5),
+              const BorderSide(color: Color(0xFFCBD0DC), width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide:
-              const BorderSide(color: AppColors.borderLight, width: 1.5),
+              const BorderSide(color: Color(0xFFCBD0DC), width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -112,17 +112,15 @@ class AppTheme {
         suffixIconColor: AppColors.textHint,
       ),
 
-      // Elevated Button
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.white,
-          minimumSize: const Size.fromHeight(56),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 0,
-          textStyle:
-              GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(54), // was 56, slightly slimmer
+          elevation: 3, // was 0, add subtle elevation
+          shadowColor: AppColors.primary.withOpacity(0.4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          textStyle: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -135,10 +133,9 @@ class AppTheme {
         ),
       ),
 
-      // Card
       cardTheme: CardThemeData(
         elevation: 0,
-        color: AppColors.cardLight,
+        color: Colors.white, // stays white — contrast against grey scaffold
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),

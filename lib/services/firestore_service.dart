@@ -65,8 +65,8 @@ class FirestoreService {
       final doc = await _courses.doc(courseId).get();
       if (!doc.exists) return null;
       return CourseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-    } catch (error) {
-      print(error);
+    } catch (e) {
+      print('[Firestore] fetchCourse error: $e');
       return null;
     }
   }
@@ -100,8 +100,8 @@ class FirestoreService {
       return snap.docs
           .map((d) => LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
           .toList();
-    } catch (error) {
-      print(error);
+    } catch (e) {
+      print('[Firestore] fetchLessons error: $e');
       return [];
     }
   }
@@ -125,8 +125,8 @@ class FirestoreService {
       if (snap.docs.isEmpty) return null;
       final doc = snap.docs.first;
       return EnrollmentModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-    } catch (error) {
-      print(error);
+    } catch (e) {
+      print('[Firestore] getEnrollment error: $e');
       return null;
     }
   }
@@ -220,8 +220,8 @@ class FirestoreService {
       final doc = await _db.collection('users').doc(uid).get();
       if (!doc.exists) return null;
       return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-    } catch (error) {
-      print(error);
+    } catch (e) {
+      print('[Firestore] fetchUser error: $e');
       return null;
     }
   }
@@ -313,8 +313,8 @@ class FirestoreService {
     try {
       final snap = await _db.collection('users').count().get();
       return snap.count ?? 0;
-    } catch (error) {
-      print(error);
+    } catch (e) {
+      print('[Firestore] countUsers error: $e');
       return 0;
     }
   }
@@ -323,8 +323,8 @@ class FirestoreService {
     try {
       final snap = await _courses.count().get();
       return snap.count ?? 0;
-    } catch (error) {
-      print(error);
+    } catch (e) {
+      print('[Firestore] countCourses error: $e');
       return 0;
     }
   }
@@ -333,8 +333,8 @@ class FirestoreService {
     try {
       final snap = await _enrollments.count().get();
       return snap.count ?? 0;
-    } catch (error) {
-      print(error);
+    } catch (e) {
+      print('[Firestore] countEnrollments error: $e');
       return 0;
     }
   }

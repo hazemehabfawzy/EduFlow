@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 
+import '../../providers/theme_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/course_model.dart';
 import '../../models/user_model.dart';
@@ -53,8 +55,27 @@ class _AdminScreenState extends State<AdminScreen>
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded,
               color: AppColors.white),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              Navigator.of(context).pushReplacementNamed('/home');
+            }
+          },
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Toggle Dark Mode',
+            icon: Icon(
+              context.watch<ThemeProvider>().isDark
+                  ? Icons.light_mode_rounded
+                  : Icons.dark_mode_rounded,
+              color: AppColors.white,
+            ),
+            onPressed: () => context.read<ThemeProvider>().toggle(),
+          ),
+          const SizedBox(width: 8),
+        ],
         bottom: TabBar(
           controller: _tabController,
           dividerColor: Colors.transparent,
@@ -67,8 +88,8 @@ class _AdminScreenState extends State<AdminScreen>
           unselectedLabelStyle:
               GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 13),
           tabs: const [
-            Tab(icon: Icon(Icons.people_alt_rounded, size: 20), text: 'Users'),
-            Tab(icon: Icon(Icons.school_rounded, size: 20), text: 'Courses'),
+            Tab(icon: Icon(Icons.school_rounded, size: 20), text: 'Teachers'),
+            Tab(icon: Icon(Icons.book_rounded, size: 20), text: 'Courses'),
             Tab(
                 icon: Icon(Icons.analytics_rounded, size: 20),
                 text: 'Analytics'),
@@ -78,7 +99,7 @@ class _AdminScreenState extends State<AdminScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _UsersTab(firestoreService: _firestoreService, isDark: isDark),
+          _TeachersTab(firestoreService: _firestoreService, isDark: isDark),
           _CoursesTab(firestoreService: _firestoreService, isDark: isDark),
           _AnalyticsTab(firestoreService: _firestoreService, isDark: isDark),
         ],
@@ -90,11 +111,10 @@ class _AdminScreenState extends State<AdminScreen>
 // ─────────────────────────────────────────────────────────────────────────────
 // USERS TAB
 // ─────────────────────────────────────────────────────────────────────────────
-class _UsersTab extends StatelessWidget {
+class _TeachersTab extends StatelessWidget {
   final FirestoreService firestoreService;
   final bool isDark;
-
-  const _UsersTab({required this.firestoreService, required this.isDark});
+  const _TeachersTab({required this.firestoreService, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -102,224 +122,233 @@ class _UsersTab extends StatelessWidget {
       stream: firestoreService.streamUsers(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-              child: CircularProgressIndicator(color: AppColors.primary));
+          return const Center(child: CircularProgressIndicator(color: AppColors.primary));
         }
+        final teachers = (snapshot.data ?? [])
+            .where((u) => u.role == 'teacher')
+            .toList();
 
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
-
-        final users = snapshot.data ?? [];
-
-        if (users.isEmpty) {
-          return const Center(child: Text('No users in database.'));
+        if (teachers.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.school_outlined, size: 64, color: AppColors.textHint),
+                SizedBox(height: 16),
+                Text('No teachers yet', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          );
         }
 
         return ListView.separated(
           padding: const EdgeInsets.all(20),
-          itemCount: users.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemCount: teachers.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 16),
           itemBuilder: (context, index) {
-            final user = users[index];
-            final roleColor = _getRoleColor(user.role);
-
-            return InkWell(
-              onLongPress: () => _showRoleDialog(context, user),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? AppColors.cardDark : AppColors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color:
-                        isDark ? AppColors.borderDark : AppColors.borderLight,
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: roleColor.withOpacity(0.1),
-                      child: Text(
-                        user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.bold,
-                          color: roleColor,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user.name,
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              color: isDark
-                                  ? AppColors.white
-                                  : AppColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            user.email,
-                            style: GoogleFonts.dmSans(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: roleColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        user.role.toUpperCase(),
-                        style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: roleColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-                .animate()
-                .fadeIn(
-                    duration: 300.ms, delay: Duration(milliseconds: 40 * index))
-                .slideY(begin: 0.05);
+            return _TeacherCard(
+              teacher: teachers[index],
+              firestoreService: firestoreService,
+              isDark: isDark,
+            );
           },
         );
       },
     );
   }
+}
 
-  Color _getRoleColor(String role) {
-    switch (role.toLowerCase()) {
-      case 'admin':
-        return AppColors.error;
-      case 'teacher':
-        return AppColors.accent;
-      default:
-        return AppColors.success;
-    }
-  }
+class _TeacherCard extends StatelessWidget {
+  final UserModel teacher;
+  final FirestoreService firestoreService;
+  final bool isDark;
+  const _TeacherCard({required this.teacher, required this.firestoreService, required this.isDark});
 
-  void _showRoleDialog(BuildContext context, UserModel user) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        String selectedRole = user.role;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-              title: Text(
-                'Modify User Role 👤',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<CourseModel>>(
+      stream: firestoreService.streamTeacherCourses(teacher.name),
+      builder: (context, snapshot) {
+        final courses = snapshot.data ?? [];
+        
+        // Calculate average rating out of 4.0
+        // Firebase stores rating out of 5, convert: (rating/5)*4
+        final avgRating = courses.isEmpty
+            ? 0.0
+            : courses.fold<double>(0, (sum, c) => sum + c.rating) / courses.length;
+        final ratingOutOf4 = (avgRating / 5.0) * 4.0;
+        final totalEnrollments = courses.fold<int>(0, (sum, c) => sum + c.totalStudents);
+
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : AppColors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.black.withOpacity(0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Change role for ${user.name}:',
-                    style: GoogleFonts.dmSans(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color:
-                          isDark ? AppColors.cardDark : AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isDark
-                            ? AppColors.borderDark
-                            : AppColors.borderLight,
-                        width: 1.5,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Teacher Header ──
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: AppColors.primary.withOpacity(0.1),
+                      child: Text(
+                        teacher.name.isNotEmpty ? teacher.name[0].toUpperCase() : 'T',
+                        style: GoogleFonts.poppins(
+                          fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primary,
+                        ),
                       ),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedRole,
-                        isExpanded: true,
-                        icon: const Icon(Icons.arrow_drop_down_rounded),
-                        dropdownColor:
-                            isDark ? AppColors.cardDark : AppColors.white,
-                        items: ['student', 'teacher', 'admin'].map((role) {
-                          return DropdownMenuItem(
-                            value: role,
-                            child: Text(
-                              role.toUpperCase(),
-                              style: GoogleFonts.poppins(
-                                  fontSize: 13, fontWeight: FontWeight.w600),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(teacher.name,
+                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w700)),
+                          Text(teacher.email,
+                            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary)),
+                          const SizedBox(height: 6),
+                          // Rating out of 4 + star display
+                          Row(
+                            children: [
+                              ...List.generate(4, (i) => Icon(
+                                i < ratingOutOf4.round()
+                                    ? Icons.star_rounded
+                                    : Icons.star_border_rounded,
+                                color: AppColors.warning,
+                                size: 16,
+                              )),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${ratingOutOf4.toStringAsFixed(1)} / 4.0',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.warning,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(Icons.people_alt_rounded, size: 14, color: AppColors.primary),
+                              const SizedBox(width: 4),
+                              Text('$totalEnrollments enrolled',
+                                style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Divider(height: 1, color: isDark ? AppColors.borderDark : AppColors.borderLight),
+
+              // ── Course List ──
+              if (courses.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text('No courses yet',
+                    style: GoogleFonts.dmSans(color: AppColors.textHint)),
+                )
+              else
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(12),
+                  itemCount: courses.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final course = courses[i];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(course.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Icon(Icons.people_outline_rounded, size: 12, color: AppColors.textHint),
+                                    const SizedBox(width: 4),
+                                    Text('${course.totalStudents} enrollments',
+                                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.textSecondary)),
+                                    const SizedBox(width: 12),
+                                    Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
+                                    const SizedBox(width: 4),
+                                    Text('${((course.rating / 5.0) * 4.0).toStringAsFixed(1)}/4.0',
+                                      style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.warning)),
+                                  ],
+                                ),
+                              ],
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => selectedRole = val);
-                          }
-                        },
+                          ),
+                          // Delete course button
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded,
+                              color: AppColors.error, size: 20),
+                            onPressed: () => _confirmDeleteCourse(context, course, firestoreService),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary),
-                  onPressed: () async {
-                    Navigator.of(ctx).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Updating user role...')),
                     );
-                    try {
-                      await firestoreService.updateUserRole(
-                          user.uid, selectedRole);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Updated ${user.name} to ${selectedRole.toUpperCase()}')),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error updating role: $e')),
-                      );
-                    }
                   },
-                  child: Text(
-                    'Save Changes',
-                    style: GoogleFonts.poppins(
-                        color: AppColors.white, fontWeight: FontWeight.w600),
-                  ),
                 ),
-              ],
-            );
-          },
+            ],
+          ),
         );
       },
+    );
+  }
+
+  void _confirmDeleteCourse(BuildContext context, CourseModel course, FirestoreService service) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Delete Course?', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        content: Text('Delete "${course.title}"? This cannot be undone.', style: GoogleFonts.dmSans()),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await service.deleteCourse(course.id);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Course deleted successfully.')),
+              );
+            },
+            child: Text('Delete', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
     );
   }
 }
