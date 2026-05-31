@@ -4,6 +4,7 @@
 class QuizModel {
   final String id;
   final String courseId;
+  final String lessonId;
   final String question;
   final List<String> options; // exactly 4 options
   final int correctAnswer; // 0-based index into [options]
@@ -13,6 +14,7 @@ class QuizModel {
   const QuizModel({
     required this.id,
     required this.courseId,
+    this.lessonId = '',
     required this.question,
     required this.options,
     required this.correctAnswer,
@@ -24,6 +26,7 @@ class QuizModel {
     return QuizModel(
       id: id,
       courseId: map['courseId'] as String? ?? '',
+      lessonId: map['lessonId'] as String? ?? '',
       question: map['question'] as String? ?? '',
       options: List<String>.from(map['options'] ?? []),
       correctAnswer: (map['correctAnswer'] as num?)?.toInt() ?? 0,
@@ -34,6 +37,7 @@ class QuizModel {
 
   Map<String, dynamic> toMap() => {
         'courseId': courseId,
+        'lessonId': lessonId,
         'question': question,
         'options': options,
         'correctAnswer': correctAnswer,

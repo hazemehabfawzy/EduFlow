@@ -16,6 +16,8 @@ class CourseModel {
   final int durationMinutes; // total course duration
   final bool isFeatured;
   final DateTime createdAt;
+  final String teacherId;
+  final double price;
 
   const CourseModel({
     required this.id,
@@ -31,6 +33,8 @@ class CourseModel {
     this.durationMinutes = 0,
     this.isFeatured = false,
     required this.createdAt,
+    this.teacherId = '',
+    this.price = 0.0,
   });
 
   factory CourseModel.fromMap(Map<String, dynamic> map, String id) {
@@ -48,6 +52,8 @@ class CourseModel {
       durationMinutes: (map['durationMinutes'] as num?)?.toInt() ?? 0,
       isFeatured: map['isFeatured'] as bool? ?? false,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      teacherId: map['teacherId'] as String? ?? '',
+      price: (map['price'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -64,6 +70,8 @@ class CourseModel {
     'durationMinutes': durationMinutes,
     'isFeatured': isFeatured,
     'createdAt': Timestamp.fromDate(createdAt),
+    'teacherId': teacherId,
+    'price': price,
   };
 
   /// Formatted duration string e.g. "2h 30m"

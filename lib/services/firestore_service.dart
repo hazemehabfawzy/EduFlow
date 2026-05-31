@@ -6,6 +6,7 @@ import '../models/lesson_model.dart';
 import '../models/enrollment_model.dart';
 import '../models/user_model.dart';
 import '../models/notification_model.dart';
+import '../models/quiz_model.dart';
 
 
 /// Single point of access for all Firestore operations.
@@ -31,7 +32,7 @@ class FirestoreService {
                 CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
             .toList()).handleError((error) {
       print('[Firestore] streamAllCourses error: $error');
-      return <CourseModel>[];
+      throw error;
     });
   }
 
@@ -46,7 +47,7 @@ class FirestoreService {
                 CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
             .toList()).handleError((error) {
       print('[Firestore] streamFeaturedCourses error: $error');
-      return <CourseModel>[];
+      throw error;
     });
   }
 
@@ -58,16 +59,18 @@ class FirestoreService {
                 CourseModel.fromMap(d.data() as Map<String, dynamic>, d.id))
             .toList()).handleError((error) {
       print('[Firestore] streamCoursesByCategory error: $error');
-      return <CourseModel>[];
+      throw error;
     });
   }
 
   /// Fetch a single course by ID (one-time read).
   Future<CourseModel?> fetchCourse(String courseId) async {
     try {
+      if (courseId.isEmpty) return null;
       final doc = await _courses.doc(courseId).get();
       if (!doc.exists) return null;
-      return CourseModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      return CourseModel.fromMap(
+          doc.data() as Map<String, dynamic>, doc.id);
     } catch (e) {
       print('[Firestore] fetchCourse error: $e');
       return null;
@@ -82,14 +85,17 @@ class FirestoreService {
   Stream<List<LessonModel>> streamLessons(String courseId) {
     return _lessons
         .where('courseId', isEqualTo: courseId)
-        .orderBy('order')
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) =>
-                LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-            .toList()).handleError((error) {
+        .map((snap) {
+          final list = snap.docs
+              .map((d) =>
+                  LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+              .toList();
+          list.sort((a, b) => a.order.compareTo(b.order));
+          return list;
+        }).handleError((error) {
       print('[Firestore] streamLessons error: $error');
-      return <LessonModel>[];
+      throw error;
     });
   }
 
@@ -98,11 +104,12 @@ class FirestoreService {
     try {
       final snap = await _lessons
           .where('courseId', isEqualTo: courseId)
-          .orderBy('order')
           .get();
-      return snap.docs
+      final list = snap.docs
           .map((d) => LessonModel.fromMap(d.data() as Map<String, dynamic>, d.id))
           .toList();
+      list.sort((a, b) => a.order.compareTo(b.order));
+      return list;
     } catch (e) {
       print('[Firestore] fetchLessons error: $e');
       return [];
@@ -174,10 +181,21 @@ class FirestoreService {
 
     await docRef.set(enrollment.toMap());
 
-    // Increment totalStudents on the course document
-    await _courses.doc(courseId).update({
-      'totalStudents': FieldValue.increment(1),
-    });
+    // Recalculate real count instead of blindly incrementing
+    try {
+      final enrollSnap = await _enrollments
+          .where('courseId', isEqualTo: courseId)
+          .get();
+      final realCount = enrollSnap.docs.length;
+      await _courses.doc(courseId).update({
+        'totalStudents': realCount,
+      });
+    } catch (e) {
+      // Fallback to increment if count fails
+      await _courses.doc(courseId).update({
+        'totalStudents': FieldValue.increment(1),
+      });
+    }
 
     // ── NEW: Get student name and notify teacher ──
     try {
@@ -198,6 +216,13 @@ class FirestoreService {
         courseTitle: courseTitle,
         studentName: studentName,
         studentId: userId,
+        courseImageUrl: courseImage,
+      ));
+
+      unawaited(notifyAdminNewEnrollment(
+        courseId: courseId,
+        courseTitle: courseTitle,
+        studentName: studentName,
         courseImageUrl: courseImage,
       ));
     } catch (e) {
@@ -238,6 +263,18 @@ class FirestoreService {
     });
   }
 
+  /// Stream ALL enrollments (used to calculate accurate teacher statistics).
+  Stream<List<EnrollmentModel>> streamAllEnrollments() {
+    return _enrollments.snapshots().map(
+        (snap) => snap.docs
+            .map((d) =>
+                EnrollmentModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+            .toList()).handleError((error) {
+      print('[Firestore] streamAllEnrollments error: $error');
+      throw error;
+    });
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // ADMIN OPERATIONS
   // ══════════════════════════════════════════════════════════════════════════
@@ -260,6 +297,13 @@ class FirestoreService {
 
     // ── NEW: Notify all students ──
     unawaited(notifyAllStudentsNewCourse(
+      courseId: course.id,
+      courseTitle: course.title,
+      instructorName: course.instructorName,
+      imageUrl: course.imageUrl,
+    ));
+
+    unawaited(notifyAdminNewCourse(
       courseId: course.id,
       courseTitle: course.title,
       instructorName: course.instructorName,
@@ -478,16 +522,19 @@ class FirestoreService {
       String userId) {
     return _notifications
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => NotificationModel.fromMap(
-                d.data() as Map<String, dynamic>, d.id))
-            .toList())
+        .map((snap) {
+          final list = snap.docs
+              .map((d) => NotificationModel.fromMap(
+                  d.data() as Map<String, dynamic>, d.id))
+              .toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        })
         .handleError((e) {
       print('[Firestore] streamUserNotifications error: $e');
-      return <NotificationModel>[];
+      throw e;
     });
   }
 
@@ -619,23 +666,43 @@ class FirestoreService {
           await _courses.doc(courseId).get();
       if (!courseDoc.exists) return;
 
-      final instructorName =
-          (courseDoc.data() as Map<String, dynamic>)['instructorName']
-              as String?;
-      if (instructorName == null) return;
+      final courseData = courseDoc.data() as Map<String, dynamic>;
+      final teacherId = courseData['teacherId'] as String?;
 
-      final teacherSnap = await _db
-          .collection('users')
-          .where('name', isEqualTo: instructorName)
-          .where('role', isEqualTo: 'teacher')
-          .limit(1)
-          .get();
+      String? targetTeacherUid;
+      if (teacherId != null && teacherId.isNotEmpty) {
+        targetTeacherUid = teacherId;
+      } else {
+        final instructorName = courseData['instructorName'] as String?;
+        if (instructorName == null) return;
 
-      if (teacherSnap.docs.isEmpty) return;
-      final teacherId = teacherSnap.docs.first.id;
+        final teacherSnap = await _db
+            .collection('users')
+            .where('name', isEqualTo: instructorName)
+            .where('role', isEqualTo: 'teacher')
+            .limit(1)
+            .get();
+
+        if (teacherSnap.docs.isNotEmpty) {
+          targetTeacherUid = teacherSnap.docs.first.id;
+        }
+      }
+
+      if (targetTeacherUid == null) {
+        final fallbackTeacherSnap = await _db
+            .collection('users')
+            .where('role', isEqualTo: 'teacher')
+            .limit(1)
+            .get();
+        if (fallbackTeacherSnap.docs.isNotEmpty) {
+          targetTeacherUid = fallbackTeacherSnap.docs.first.id;
+        }
+      }
+
+      if (targetTeacherUid == null) return;
 
       await createNotification(
-        userId: teacherId,
+        userId: targetTeacherUid,
         type: 'new_enrollment',
         title: '🎉 New Student Enrolled!',
         body: '$studentName enrolled in "$courseTitle"',
@@ -683,22 +750,42 @@ class FirestoreService {
 
       final data =
           courseDoc.data() as Map<String, dynamic>;
-      final instructorName =
-          data['instructorName'] as String?;
-      if (instructorName == null) return;
+      final teacherId = data['teacherId'] as String?;
 
-      final teacherSnap = await _db
-          .collection('users')
-          .where('name', isEqualTo: instructorName)
-          .where('role', isEqualTo: 'teacher')
-          .limit(1)
-          .get();
+      String? targetTeacherUid;
+      if (teacherId != null && teacherId.isNotEmpty) {
+        targetTeacherUid = teacherId;
+      } else {
+        final instructorName = data['instructorName'] as String?;
+        if (instructorName == null) return;
 
-      if (teacherSnap.docs.isEmpty) return;
-      final teacherId = teacherSnap.docs.first.id;
+        final teacherSnap = await _db
+            .collection('users')
+            .where('name', isEqualTo: instructorName)
+            .where('role', isEqualTo: 'teacher')
+            .limit(1)
+            .get();
+
+        if (teacherSnap.docs.isNotEmpty) {
+          targetTeacherUid = teacherSnap.docs.first.id;
+        }
+      }
+
+      if (targetTeacherUid == null) {
+        final fallbackTeacherSnap = await _db
+            .collection('users')
+            .where('role', isEqualTo: 'teacher')
+            .limit(1)
+            .get();
+        if (fallbackTeacherSnap.docs.isNotEmpty) {
+          targetTeacherUid = fallbackTeacherSnap.docs.first.id;
+        }
+      }
+
+      if (targetTeacherUid == null) return;
 
       await createNotification(
-        userId: teacherId,
+        userId: targetTeacherUid,
         type: 'new_rating',
         title: '⭐ New Rating Received!',
         body:
@@ -708,6 +795,202 @@ class FirestoreService {
       );
     } catch (e) {
       print('[Firestore] notifyTeacherNewRating error: $e');
+    }
+  }
+
+  /// Notify all admin users about a new enrollment
+  Future<void> notifyAdminNewEnrollment({
+    required String courseId,
+    required String courseTitle,
+    required String studentName,
+    String? courseImageUrl,
+  }) async {
+    try {
+      final adminSnap = await _db
+          .collection('users')
+          .where('role', isEqualTo: 'admin')
+          .get();
+
+      final batch = _db.batch();
+      for (final doc in adminSnap.docs) {
+        final notifRef = _notifications.doc();
+        batch.set(notifRef, {
+          'userId': doc.id,
+          'type': 'new_enrollment',
+          'title': '🎉 New Student Enrolled!',
+          'body': '$studentName enrolled in "$courseTitle"',
+          'imageUrl': courseImageUrl,
+          'courseId': courseId,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'receiverRole': 'admin',
+        });
+      }
+      await batch.commit();
+    } catch (e) {
+      print('[Firestore] notifyAdminNewEnrollment error: $e');
+    }
+  }
+
+  /// Notify all admin users about a new course published
+  Future<void> notifyAdminNewCourse({
+    required String courseId,
+    required String courseTitle,
+    required String instructorName,
+    String? imageUrl,
+  }) async {
+    try {
+      final adminSnap = await _db
+          .collection('users')
+          .where('role', isEqualTo: 'admin')
+          .get();
+
+      final batch = _db.batch();
+      for (final doc in adminSnap.docs) {
+        final notifRef = _notifications.doc();
+        batch.set(notifRef, {
+          'userId': doc.id,
+          'type': 'new_course',
+          'title': '📚 New Course Published!',
+          'body': '$instructorName published "$courseTitle"',
+          'imageUrl': imageUrl,
+          'courseId': courseId,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'receiverRole': 'admin',
+        });
+      }
+      await batch.commit();
+    } catch (e) {
+      print('[Firestore] notifyAdminNewCourse error: $e');
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // QUIZZES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /// Add a single quiz question
+  Future<void> addQuizQuestion(QuizModel quiz) async {
+    await _quizzes.doc(quiz.id).set(quiz.toMap());
+  }
+
+  /// Stream quiz questions for a specific lesson
+  Stream<List<QuizModel>> streamLessonQuizzes(String lessonId) {
+    return _quizzes
+        .where('lessonId', isEqualTo: lessonId)
+        .snapshots()
+        .map((snap) {
+          final list = snap.docs
+              .map((d) => QuizModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+              .toList();
+          list.sort((a, b) => a.order.compareTo(b.order));
+          return list;
+        })
+        .handleError((error) {
+      print('[Firestore] streamLessonQuizzes error: $error');
+      throw error;
+    });
+  }
+
+  /// Fetch quiz questions for a specific lesson (one-time read)
+  Future<List<QuizModel>> fetchLessonQuizzes(String lessonId) async {
+    try {
+      final snap = await _quizzes
+          .where('lessonId', isEqualTo: lessonId)
+          .get();
+      final list = snap.docs
+          .map((d) => QuizModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+          .toList();
+      list.sort((a, b) => a.order.compareTo(b.order));
+      return list;
+    } catch (e) {
+      print('[Firestore] fetchLessonQuizzes error: $e');
+      return [];
+    }
+  }
+
+  /// Delete a quiz question
+  Future<void> deleteQuizQuestion(String quizId) async {
+    await _quizzes.doc(quizId).delete();
+  }
+
+  /// Save a student's quiz attempt score
+  Future<void> saveQuizScore({
+    required String lessonId,
+    required String courseId,
+    required String userId,
+    required int score,
+    required int totalQuestions,
+  }) async {
+    try {
+      await _db.collection('quiz_scores').add({
+        'lessonId': lessonId,
+        'courseId': courseId,
+        'userId': userId,
+        'score': score,
+        'totalQuestions': totalQuestions,
+        'percentage': totalQuestions > 0 ? (score / totalQuestions * 100).round() : 0,
+        'submittedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('[Firestore] saveQuizScore error: $e');
+    }
+  }
+
+  /// One-time repair: recalculates totalStudents for all courses
+  /// from actual enrollment documents. Safe to call multiple times.
+  Future<void> repairStudentCounts() async {
+    try {
+      final coursesSnap = await _courses.get();
+      final batch = _db.batch();
+
+      for (final courseDoc in coursesSnap.docs) {
+        final enrollSnap = await _enrollments
+            .where('courseId', isEqualTo: courseDoc.id)
+            .get();
+        final realCount = enrollSnap.docs.length;
+
+        // Only update if the count is actually wrong
+        final currentCount =
+            (courseDoc.data() as Map<String, dynamic>)['totalStudents'] as int? ??
+                0;
+        if (currentCount != realCount) {
+          batch.update(courseDoc.reference, {'totalStudents': realCount});
+          print('[Repair] Course ${courseDoc.id}: $currentCount → $realCount');
+        }
+      }
+
+      await batch.commit();
+      print('[Repair] Student counts fixed successfully');
+    } catch (e) {
+      print('[Repair] repairStudentCounts error: $e');
+    }
+  }
+
+  /// Update an existing course document
+  Future<void> updateCourse({
+    required String courseId,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      await _courses.doc(courseId).update(updates);
+    } catch (e) {
+      print('[Firestore] updateCourse error: $e');
+      rethrow;
+    }
+  }
+
+  /// Update an existing lesson document
+  Future<void> updateLesson({
+    required String lessonId,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      await _db.collection('lessons').doc(lessonId).update(updates);
+    } catch (e) {
+      print('[Firestore] updateLesson error: $e');
+      rethrow;
     }
   }
 }

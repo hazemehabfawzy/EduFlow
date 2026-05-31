@@ -1,75 +1,36 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# Flutter
+build/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
-/build/
-/coverage/
 
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Android local properties (machine-specific)
-android/local.properties
+# Android
 android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/build/
+android/local.properties
 
-# iOS Pods
-ios/Pods/
-ios/.symlinks/
-
-# macOS
-macos/Flutter/ephemeral/
-macos/Pods/
-
-# Linux
-linux/flutter/ephemeral/
-
-# Windows
-windows/flutter/ephemeral/
-
-# Firebase Service Account Key — NEVER commit
+# Firebase — NEVER commit this
+google-services.json
 serviceAccountKey.json
+GoogleService-Info.plist
 
-# Python scripts (seeding scripts — not part of app)
+# Python scripts
 *.py
 
-# Environment files
+# Environment
 .env
 *.env
 
-# VS Code (optional — uncomment if you want to ignore)
-# .vscode/
+# IDE
+.idea/
+.vscode/settings.json
 
-# Gradle reports
-android/build/
+# Misc
+*.class
+*.log
+.DS_Store

@@ -485,7 +485,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (enrollment != null)
+          if (enrollment != null) ...[
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: TextButton.icon(
@@ -514,6 +514,29 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                     )),
               ),
             ),
+            // Take Quiz button (course-level)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.quiz,
+                    arguments: {
+                      'courseId': course.id,
+                      'courseTitle': course.title,
+                      'userId': userId,
+                    },
+                  );
+                },
+                icon: const Icon(Icons.quiz_rounded, color: AppColors.primary),
+                label: Text('Take Course Quiz',
+                    style: GoogleFonts.poppins(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    )),
+              ),
+            ),
+          ],
           enrollment == null
               ? GradientButton(
                   label: 'Enroll for Free',

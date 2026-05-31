@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/quiz_model.dart';
 import '../../widgets/gradient_button.dart';
+import '../../services/firestore_service.dart';
 
 /// Quiz screen receives a Map argument:
 /// { 'courseId': String, 'courseTitle': String }
@@ -20,6 +21,8 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen>
     with SingleTickerProviderStateMixin {
+  final FirestoreService _firestoreService = FirestoreService();
+
   // ── State ──────────────────────────────────────────────────────────────────
   List<QuizModel> _questions = [];
   bool _loading = true;
@@ -35,6 +38,11 @@ class _QuizScreenState extends State<QuizScreen>
 
   late final AnimationController _shakeCtrl;
 
+  bool _loaded = false;
+  String _lessonId = '';
+  String _courseId = '';
+  String _userId = '';
+
   // ── Init ────────────────────────────────────────────────────────────────────
   @override
   void initState() {
@@ -48,9 +56,32 @@ class _QuizScreenState extends State<QuizScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-    _loadQuestions(args['courseId'] as String);
+    if (_loaded) return;
+    _loaded = true;
+    final rawArgs = ModalRoute.of(context)?.settings.arguments;
+    if (rawArgs == null || rawArgs is! Map<String, dynamic>) {
+      setState(() {
+        _error = 'Invalid quiz arguments. Please try again.';
+        _loading = false;
+      });
+      return;
+    }
+    final args = rawArgs;
+    _lessonId = args['lessonId'] as String? ?? '';
+    _courseId = args['courseId'] as String? ?? '';
+    _userId = args['userId'] as String? ?? '';
+    if (_lessonId.isEmpty && _courseId.isEmpty) {
+      setState(() {
+        _error = 'No lesson or course specified for this quiz.';
+        _loading = false;
+      });
+      return;
+    }
+    if (_lessonId.isNotEmpty) {
+      _loadQuestionsByLesson(_lessonId);
+    } else {
+      _loadQuestions(_courseId);
+    }
   }
 
   @override
@@ -61,17 +92,34 @@ class _QuizScreenState extends State<QuizScreen>
   }
 
   // ── Data ────────────────────────────────────────────────────────────────────
+  Future<void> _loadQuestionsByLesson(String lessonId) async {
+    try {
+      final questions = await _firestoreService.fetchLessonQuizzes(lessonId);
+      setState(() {
+        _questions = questions;
+        _userAnswers = List.filled(questions.length, null);
+        _loading = false;
+      });
+      if (questions.isNotEmpty) _startTimer();
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
   Future<void> _loadQuestions(String courseId) async {
     try {
       final snap = await FirebaseFirestore.instance
           .collection('quizzes')
           .where('courseId', isEqualTo: courseId)
-          .orderBy('order')
           .get();
 
       final questions = snap.docs
           .map((d) => QuizModel.fromMap(d.data(), d.id))
           .toList();
+      questions.sort((a, b) => a.order.compareTo(b.order));
 
       setState(() {
         _questions = questions;
@@ -160,6 +208,17 @@ class _QuizScreenState extends State<QuizScreen>
 
   // ── Result Dialog ────────────────────────────────────────────────────────────
   void _showResultDialog() {
+    // Save score to Firestore
+    if (_userId.isNotEmpty) {
+      _firestoreService.saveQuizScore(
+        lessonId: _lessonId,
+        courseId: _courseId,
+        userId: _userId,
+        score: _score,
+        totalQuestions: _questions.length,
+      );
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -189,8 +248,8 @@ class _QuizScreenState extends State<QuizScreen>
   // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final args =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final rawArgs = ModalRoute.of(context)?.settings.arguments;
+    final args = rawArgs is Map<String, dynamic> ? rawArgs : <String, dynamic>{};
     final courseTitle = args['courseTitle'] as String? ?? 'Quiz';
 
     return Scaffold(
@@ -199,7 +258,16 @@ class _QuizScreenState extends State<QuizScreen>
         child: _loading
             ? const _LoadingState()
             : _error != null
-                ? _ErrorState(message: _error!, onRetry: () {})
+                ? _ErrorState(
+                    message: _error!,
+                    onRetry: () {
+                      setState(() {
+                        _loading = true;
+                        _error = null;
+                        _loaded = false;
+                      });
+                      didChangeDependencies();
+                    })
                 : _questions.isEmpty
                     ? const _EmptyState()
                     : _buildQuizBody(courseTitle),
@@ -854,8 +922,18 @@ class _ErrorState extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.error_outline_rounded,
-              size: 64, color: AppColors.error),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              size: 48,
+              color: AppColors.error,
+            ),
+          ),
           const SizedBox(height: 16),
           Text('Failed to load quiz',
               style: Theme.of(context).textTheme.titleLarge),

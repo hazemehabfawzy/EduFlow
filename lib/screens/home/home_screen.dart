@@ -243,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ],
-                body: _buildScrollBody(isDark, snapshot, enrollments),
+                body: _buildScrollBody(user.uid, isDark, snapshot, enrollments),
               );
             },
           ),
@@ -254,15 +254,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── Main Scroll Body ─────────────────────────────────────────────
   Widget _buildScrollBody(
-      bool isDark, AsyncSnapshot<List<CourseModel>> snapshot, List<EnrollmentModel> enrollments) {
+      String userId, bool isDark, AsyncSnapshot<List<CourseModel>> snapshot, List<EnrollmentModel> enrollments) {
     return CustomScrollView(
       slivers: [
         // Search bar
         SliverToBoxAdapter(child: _buildSearchBar(isDark)),
 
         // Continue Learning Section
-        if (enrollments.isNotEmpty)
-          SliverToBoxAdapter(child: _buildContinueLearningSection(isDark, enrollments)),
+        SliverToBoxAdapter(child: _buildContinueLearning(userId, isDark)),
 
         // Categories
         SliverToBoxAdapter(child: _buildCategoriesSection()),
@@ -283,161 +282,275 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Continue Learning Horizontal Section ───────────────────────────
-  Widget _buildContinueLearningSection(bool isDark, List<EnrollmentModel> enrollments) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '⚡ Continue Learning',
-                style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 90,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: enrollments.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (_, i) {
-              final enrollment = enrollments[i];
-              // Look up course in memory from CourseProvider courses
-              final course = _courses.firstWhere(
-                (c) => c.id == enrollment.courseId,
-                orElse: () => CourseModel(
-                  id: enrollment.courseId,
-                  title: 'Loading course...',
-                  description: '',
-                  imageUrl: '',
-                  instructorName: '',
-                  createdAt: DateTime.now(),
-                ),
-              );
+Widget _buildContinueLearning(String userId, bool isDark) {
+  return StreamBuilder<List<EnrollmentModel>>(
+    stream: FirestoreService().streamUserEnrollments(userId),
+    builder: (context, enrollSnap) {
+      // Still loading enrollments
+      if (enrollSnap.connectionState == ConnectionState.waiting) {
+        return const SizedBox.shrink();
+      }
 
-              return GestureDetector(
-                onTap: () {
-                  if (course.title != 'Loading course...') {
-                    Navigator.of(context).pushNamed(
-                      AppRoutes.courseDetail,
-                      arguments: course,
-                    );
-                  }
-                },
-                child: Container(
-                  width: 220,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.cardDark : AppColors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isDark ? AppColors.borderDark : AppColors.borderLight,
-                      width: 1.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.black.withOpacity(0.02),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: course.imageUrl.isNotEmpty
-                            ? Image.network(
-                                course.imageUrl,
-                                width: 50,
-                                height: 50,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                width: 50,
-                                height: 50,
-                                color: AppColors.primary.withOpacity(0.1),
-                                child: const Icon(Icons.school_rounded, color: AppColors.primary, size: 24),
-                              ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              course.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isDark ? AppColors.white : AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'by ${course.instructorName}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.dmSans(
-                                fontSize: 10,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(4),
-                                    child: LinearProgressIndicator(
-                                      value: enrollment.progress,
-                                      minHeight: 4,
-                                      backgroundColor: isDark
-                                          ? AppColors.borderDark
-                                          : AppColors.borderLight,
-                                      valueColor: const AlwaysStoppedAnimation(AppColors.success),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${(enrollment.progress * 100).toInt()}%',
-                                  style: GoogleFonts.dmSans(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.success,
-                                  ),
-                                ),
-                              ],
-                            ),
+      // No enrollments at all — hide section
+      final enrollments = enrollSnap.data ?? [];
+      if (enrollments.isEmpty) return const SizedBox.shrink();
+
+      // Sort by lastAccessedAt to show most recent first
+      enrollments.sort((a, b) =>
+          b.lastAccessedAt.compareTo(a.lastAccessedAt));
+
+      final latestEnrollment = enrollments.first;
+
+      return FutureBuilder<CourseModel?>(
+        future: FirestoreService()
+            .fetchCourse(latestEnrollment.courseId),
+        builder: (context, courseSnap) {
+          // Still fetching course
+          if (courseSnap.connectionState ==
+              ConnectionState.waiting) {
+            return _buildContinueLearningShimmer(isDark);
+          }
+
+          // Course not found or error — hide section silently
+          final course = courseSnap.data;
+          if (course == null) return const SizedBox.shrink();
+
+          final progress = latestEnrollment.progress;
+          final completedCount =
+              latestEnrollment.completedLessonIds.length;
+          final totalLessons = course.totalLessons;
+
+          return Padding(
+            padding:
+                const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                // Section header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.accent,
                           ],
                         ),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                    ],
+                      child: Row(
+                        children: [
+                          const Text('⚡',
+                              style: TextStyle(fontSize: 12)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Continue Learning',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // Course card
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).pushNamed(
+                      AppRoutes.courseDetail,
+                      arguments: {'courseId': course.id},
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppColors.cardDark
+                          : AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.borderDark
+                            : AppColors.borderLight,
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black
+                              .withOpacity(isDark ? 0.2 : 0.06),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Course thumbnail
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(12),
+                          child: course.imageUrl.isNotEmpty
+                              ? Image.network(
+                                  course.imageUrl,
+                                  width: 64,
+                                  height: 64,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _coursePlaceholder(),
+                                )
+                              : _coursePlaceholder(),
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Course info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                course.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? AppColors.white
+                                      : AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'by ${course.instructorName}',
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Progress bar
+                              ClipRRect(
+                                borderRadius:
+                                    BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: progress.clamp(0.0, 1.0),
+                                  backgroundColor: isDark
+                                      ? AppColors.borderDark
+                                      : AppColors.borderLight,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(
+                                    progress >= 1.0
+                                        ? AppColors.success
+                                        : AppColors.primary,
+                                  ),
+                                  minHeight: 6,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+
+                              // Progress text
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '$completedCount/$totalLessons lessons',
+                                    style: GoogleFonts.dmSans(
+                                      fontSize: 10,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(progress * 100).toInt()}%',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: progress >= 1.0
+                                          ? AppColors.success
+                                          : AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Arrow
+                        const SizedBox(width: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 14,
+                            color: AppColors.textHint,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            },
-          ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+Widget _coursePlaceholder() {
+  return Container(
+    width: 64,
+    height: 64,
+    decoration: BoxDecoration(
+      color: AppColors.primary.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: const Icon(
+      Icons.school_rounded,
+      color: AppColors.primary,
+      size: 28,
+    ),
+  );
+}
+
+Widget _buildContinueLearningShimmer(bool isDark) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+    child: Container(
+      height: 100,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? AppColors.borderDark
+              : AppColors.borderLight,
         ),
-      ],
-    ).animate().fadeIn(duration: 400.ms, delay: 200.ms);
-  }
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.primary,
+          strokeWidth: 2,
+        ),
+      ),
+    ),
+  );
+}
 
   // ── Search Bar ───────────────────────────────────────────────────
   Widget _buildSearchBar(bool isDark) {

@@ -14,6 +14,8 @@ import '../../services/firestore_service.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../models/lesson_model.dart';
+import '../../models/quiz_model.dart';
+import '../../models/enrollment_model.dart';
 import '../../widgets/course_enrollments_sheet.dart';
 import '../../providers/notification_provider.dart';
 import '../../widgets/notification_bell.dart';
@@ -47,11 +49,21 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
+  void _showEditCourseSheet(BuildContext context, CourseModel course) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _EditCourseSheet(course: course),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AuthSessionService.startMonitoring(context);
+      _firestoreService.repairStudentCounts();
     });
   }
 
@@ -85,8 +97,18 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline_rounded,
-                        color: AppColors.error, size: 48),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        size: 36,
+                        color: AppColors.error,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'Failed to load dashboard',
@@ -106,24 +128,31 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
           // Aggregate statistics dynamically
           final totalCourses = courses.length;
-          final totalStudents =
-              courses.fold<int>(0, (sum, c) => sum + c.totalStudents);
           final totalLessons =
               courses.fold<int>(0, (sum, c) => sum + c.totalLessons);
 
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // ── Gradient Header ───────────────────────────────────────
-              SliverAppBar(
-                expandedHeight: 180,
-                pinned: true,
-                automaticallyImplyLeading: false,
-                backgroundColor: AppColors.primary,
-                surfaceTintColor: AppColors.primary,
-                actions: [
-                  const NotificationBell(),
-                  IconButton(
+          return StreamBuilder<List<EnrollmentModel>>(
+            stream: _firestoreService.streamAllEnrollments(),
+            builder: (context, enrollSnap) {
+              final enrollments = enrollSnap.data ?? [];
+              final courseIds = courses.map((c) => c.id).toSet();
+              
+              // Calculate unique student IDs enrolled in the teacher's courses
+              final teacherEnrollments = enrollments.where((e) => courseIds.contains(e.courseId));
+              final totalStudents = teacherEnrollments.map((e) => e.userId).toSet().length;
+
+              return CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  // ── Gradient Header ───────────────────────────────────────
+                  SliverAppBar(
+                    expandedHeight: 180,
+                    pinned: true,
+                    automaticallyImplyLeading: false,
+                    backgroundColor: AppColors.primary,
+                    surfaceTintColor: AppColors.primary,
+                    actions: [
+                      IconButton(
                     tooltip: 'Toggle Dark Mode',
                     icon: Icon(
                       context.watch<ThemeProvider>().isDark
@@ -310,6 +339,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 ),
             ],
           );
+            },
+          );
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -480,17 +511,28 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.people_alt_rounded,
-                                    size: 12, color: AppColors.textHint),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${course.totalStudents} stud.',
-                                  style: GoogleFonts.dmSans(
-                                      fontSize: 11, color: AppColors.textSecondary),
-                                ),
-                              ],
+                            StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection('enrollments')
+                                  .where('courseId', isEqualTo: course.id)
+                                  .snapshots(),
+                              builder: (context, snapshot) {
+                                final count = snapshot.data?.docs.length ?? course.totalStudents;
+                                return Row(
+                                  children: [
+                                    const Icon(Icons.people_alt_rounded,
+                                        size: 12, color: AppColors.textHint),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$count stud.',
+                                      style: GoogleFonts.dmSans(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                             Row(
                               children: [
@@ -525,6 +567,30 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: Column(
               children: [
+                // Edit Course button — add above the Add Lesson / View Lessons row
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        side: const BorderSide(
+                            color: AppColors.warning, width: 1.5),
+                        foregroundColor: AppColors.warning,
+                      ),
+                      icon: const Icon(Icons.edit_rounded, size: 16),
+                      label: Text(
+                        'Edit Course',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      onPressed: () => _showEditCourseSheet(context, course),
+                    ),
+                  ),
+                ),
                 Row(
                   children: [
                     Expanded(
@@ -699,6 +765,8 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
 
     setState(() => _isLoading = true);
 
+    final teacherUid = context.read<AuthProvider>().currentUser?.uid ?? '';
+
     // Slugify course title for a readable ID and append timestamp
     final courseId =
         '${_titleCtrl.text.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_').replaceAll(RegExp(r'_+'), '_')}_${DateTime.now().millisecondsSinceEpoch}';
@@ -717,6 +785,7 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
       durationMinutes: int.parse(_durationCtrl.text),
       isFeatured: _isFeatured,
       createdAt: DateTime.now(),
+      teacherId: teacherUid,
     );
 
     try {
@@ -1080,13 +1149,17 @@ class _AddLessonSheetState extends State<_AddLessonSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
+      String videoUrl = _videoUrlCtrl.text.trim();
+      if (videoUrl.isNotEmpty && !videoUrl.startsWith('http://') && !videoUrl.startsWith('https://')) {
+        videoUrl = 'https://$videoUrl';
+      }
       final docRef =
           FirebaseFirestore.instance.collection('lessons').doc();
       await docRef.set({
         'id': docRef.id,
         'courseId': widget.course.id,
         'title': _titleCtrl.text.trim(),
-        'videoUrl': _videoUrlCtrl.text.trim(),
+        'videoUrl': videoUrl,
         'notes': _notesCtrl.text.trim(),
         'order': int.tryParse(_orderCtrl.text) ?? 1,
         'durationMinutes':
@@ -1336,6 +1409,39 @@ class _ViewLessonsSheet extends StatelessWidget {
               stream:
                   firestoreService.streamLessons(course.id),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              size: 36,
+                              color: AppColors.error,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text('Failed to load lessons',
+                              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          Text(
+                            snapshot.error.toString(),
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
                 if (snapshot.connectionState ==
                     ConnectionState.waiting) {
                   return const Center(
@@ -1428,30 +1534,1222 @@ class _ViewLessonsSheet extends StatelessWidget {
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(
-                              Icons.delete_outline_rounded,
-                              color: AppColors.error,
-                              size: 18),
-                          onPressed: () async {
-                            await FirebaseFirestore.instance
-                                .collection('lessons')
-                                .doc(lesson.id)
-                                .delete();
-                            await FirebaseFirestore.instance
-                                .collection('courses')
-                                .doc(course.id)
-                                .update({
-                              'totalLessons':
-                                  FieldValue.increment(-1)
-                            });
-                          },
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(
+                                  Icons.quiz_rounded,
+                                  color: AppColors.primary,
+                                  size: 18),
+                              tooltip: 'Manage Quiz',
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => _ManageQuizSheet(
+                                    courseId: course.id,
+                                    lesson: lesson,
+                                  ),
+                                );
+                              },
+                            ),
+                            // Edit lesson button
+                            IconButton(
+                              icon: const Icon(Icons.edit_rounded,
+                                  color: AppColors.warning, size: 18),
+                              tooltip: 'Edit Lesson',
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => _EditLessonSheet(
+                                    lesson: lesson,
+                                    courseId: course.id,
+                                  ),
+                                );
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: AppColors.error,
+                                  size: 18),
+                              onPressed: () async {
+                                await FirebaseFirestore.instance
+                                    .collection('lessons')
+                                    .doc(lesson.id)
+                                    .delete();
+                                await FirebaseFirestore.instance
+                                    .collection('courses')
+                                    .doc(course.id)
+                                    .update({
+                                  'totalLessons':
+                                      FieldValue.increment(-1)
+                                });
+                              },
+                            ),
+                          ],
                         ),
                       ]),
                     );
                   },
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManageQuizSheet extends StatefulWidget {
+  final String courseId;
+  final LessonModel lesson;
+  const _ManageQuizSheet({required this.courseId, required this.lesson});
+
+  @override
+  State<_ManageQuizSheet> createState() => _ManageQuizSheetState();
+}
+
+class _ManageQuizSheetState extends State<_ManageQuizSheet> {
+  final FirestoreService _firestoreService = FirestoreService();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textHint,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Quiz Manager 📝',
+                          style: GoogleFonts.poppins(
+                              fontSize: 20, fontWeight: FontWeight.w700)),
+                      Text('Lesson: ${widget.lesson.title}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.dmSans(
+                              fontSize: 12, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                FloatingActionButton.small(
+                  backgroundColor: AppColors.primary,
+                  child: const Icon(Icons.add_rounded, color: Colors.white),
+                  onPressed: () => _showAddQuestionDialog(context),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Questions list
+          Expanded(
+            child: StreamBuilder<List<QuizModel>>(
+              stream: _firestoreService.streamLessonQuizzes(widget.lesson.id),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              size: 36,
+                              color: AppColors.error,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text('Failed to load quizzes',
+                              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 6),
+                          Text(
+                            snapshot.error.toString(),
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator(color: AppColors.primary));
+                }
+                final quizzes = snapshot.data ?? [];
+                if (quizzes.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.quiz_outlined,
+                            size: 48, color: AppColors.textHint),
+                        const SizedBox(height: 12),
+                        Text('No quiz questions yet',
+                            style: GoogleFonts.poppins(
+                                fontSize: 16, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 6),
+                        Text('Tap + to add MCQ questions',
+                            style: GoogleFonts.dmSans(
+                                fontSize: 13, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: quizzes.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) {
+                    final q = quizzes[i];
+                    final optionLetters = ['A', 'B', 'C', 'D'];
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.cardDark : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text('Q${q.order}',
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary)),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded,
+                                    color: AppColors.error, size: 18),
+                                onPressed: () =>
+                                    _firestoreService.deleteQuizQuestion(q.id),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(q.question,
+                              style: GoogleFonts.poppins(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 10),
+                          ...List.generate(q.options.length, (oi) {
+                            final isCorrect = oi == q.correctAnswer;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 24, height: 24,
+                                    decoration: BoxDecoration(
+                                      color: isCorrect
+                                          ? AppColors.success.withOpacity(0.15)
+                                          : AppColors.textHint.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                          oi < 4 ? optionLetters[oi] : '${oi + 1}',
+                                          style: GoogleFonts.poppins(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                              color: isCorrect
+                                                  ? AppColors.success
+                                                  : AppColors.textSecondary)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(q.options[oi],
+                                        style: GoogleFonts.dmSans(
+                                          fontSize: 12,
+                                          color: isCorrect
+                                              ? AppColors.success
+                                              : null,
+                                          fontWeight: isCorrect
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                        )),
+                                  ),
+                                  if (isCorrect)
+                                    const Icon(Icons.check_circle_rounded,
+                                        color: AppColors.success, size: 16),
+                                ],
+                              ),
+                            );
+                          }),
+                          if (q.explanation != null && q.explanation!.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: AppColors.info.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.lightbulb_outline,
+                                      color: AppColors.info, size: 14),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(q.explanation!,
+                                        style: GoogleFonts.dmSans(
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddQuestionDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddQuizQuestionSheet(
+        courseId: widget.courseId,
+        lessonId: widget.lesson.id,
+      ),
+    );
+  }
+}
+
+class _AddQuizQuestionSheet extends StatefulWidget {
+  final String courseId;
+  final String lessonId;
+  const _AddQuizQuestionSheet({required this.courseId, required this.lessonId});
+
+  @override
+  State<_AddQuizQuestionSheet> createState() => _AddQuizQuestionSheetState();
+}
+
+class _AddQuizQuestionSheetState extends State<_AddQuizQuestionSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _questionCtrl = TextEditingController();
+  final _optionACrl = TextEditingController();
+  final _optionBCtrl = TextEditingController();
+  final _optionCCtrl = TextEditingController();
+  final _optionDCtrl = TextEditingController();
+  final _explanationCtrl = TextEditingController();
+  final _orderCtrl = TextEditingController(text: '1');
+  int _correctAnswer = 0;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _questionCtrl.dispose();
+    _optionACrl.dispose();
+    _optionBCtrl.dispose();
+    _optionCCtrl.dispose();
+    _optionDCtrl.dispose();
+    _explanationCtrl.dispose();
+    _orderCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final docRef = FirebaseFirestore.instance.collection('quizzes').doc();
+      final quiz = QuizModel(
+        id: docRef.id,
+        courseId: widget.courseId,
+        lessonId: widget.lessonId,
+        question: _questionCtrl.text.trim(),
+        options: [
+          _optionACrl.text.trim(),
+          _optionBCtrl.text.trim(),
+          _optionCCtrl.text.trim(),
+          _optionDCtrl.text.trim(),
+        ],
+        correctAnswer: _correctAnswer,
+        order: int.tryParse(_orderCtrl.text) ?? 1,
+        explanation: _explanationCtrl.text.trim().isEmpty
+            ? null
+            : _explanationCtrl.text.trim(),
+      );
+
+      await FirestoreService().addQuizQuestion(quiz);
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Quiz question added! ✅'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final optionLabels = ['A', 'B', 'C', 'D'];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, 24 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textHint,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('Add MCQ Question ✏️',
+              style: GoogleFonts.poppins(
+                  fontSize: 20, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CustomTextField(
+                      label: 'Question',
+                      hint: 'Enter the question...',
+                      controller: _questionCtrl,
+                      prefixIcon: Icons.help_outline_rounded,
+                      maxLines: 2,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 14),
+                    ...List.generate(4, (i) {
+                      final ctrls = [_optionACrl, _optionBCtrl, _optionCCtrl, _optionDCtrl];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => setState(() => _correctAnswer = i),
+                              child: Container(
+                                width: 36, height: 36,
+                                decoration: BoxDecoration(
+                                  color: _correctAnswer == i
+                                      ? AppColors.success
+                                      : AppColors.textHint.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: _correctAnswer == i
+                                      ? const Icon(Icons.check_rounded,
+                                          color: Colors.white, size: 18)
+                                      : Text(optionLabels[i],
+                                          style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textSecondary)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: CustomTextField(
+                                label: 'Option ${optionLabels[i]}',
+                                hint: 'Enter option ${optionLabels[i]}',
+                                controller: ctrls[i],
+                                prefixIcon: Icons.radio_button_unchecked_rounded,
+                                validator: (v) =>
+                                    v == null || v.isEmpty ? 'Required' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 6),
+                    Text('Tap the letter to mark it as the correct answer ✅',
+                        style: GoogleFonts.dmSans(
+                            fontSize: 11, color: AppColors.textSecondary)),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      Expanded(
+                        child: CustomTextField(
+                          label: 'Question Order',
+                          hint: '1',
+                          controller: _orderCtrl,
+                          prefixIcon: Icons.format_list_numbered_rounded,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 14),
+                    CustomTextField(
+                      label: 'Explanation (Model Answer)',
+                      hint: 'Explain why the correct answer is correct...',
+                      controller: _explanationCtrl,
+                      prefixIcon: Icons.lightbulb_outline_rounded,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 24),
+                    GradientButton(
+                      label: 'Add Question',
+                      isLoading: _isLoading,
+                      onPressed: _isLoading ? null : _submit,
+                      icon: const Icon(Icons.add_rounded,
+                          color: Colors.white, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditCourseSheet extends StatefulWidget {
+  final CourseModel course;
+  const _EditCourseSheet({required this.course});
+
+  @override
+  State<_EditCourseSheet> createState() => _EditCourseSheetState();
+}
+
+class _EditCourseSheetState extends State<_EditCourseSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final FirestoreService _firestoreService = FirestoreService();
+
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _descriptionCtrl;
+  late final TextEditingController _imageUrlCtrl;
+  late final TextEditingController _priceCtrl;
+  late final TextEditingController _durationCtrl;
+  late final TextEditingController _categoryCtrl;
+
+  late String _selectedLevel;
+  late bool _isFeatured;
+  bool _isLoading = false;
+
+  final List<String> _levels = ['Beginner', 'Intermediate', 'Advanced'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill all fields with existing course data
+    _titleCtrl =
+        TextEditingController(text: widget.course.title);
+    _descriptionCtrl =
+        TextEditingController(text: widget.course.description);
+    _imageUrlCtrl =
+        TextEditingController(text: widget.course.imageUrl);
+    _priceCtrl =
+        TextEditingController(text: widget.course.price.toString());
+    _durationCtrl = TextEditingController(
+        text: widget.course.durationMinutes.toString());
+    _categoryCtrl =
+        TextEditingController(text: widget.course.category);
+    _selectedLevel = widget.course.level;
+    _isFeatured = widget.course.isFeatured;
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _imageUrlCtrl.dispose();
+    _priceCtrl.dispose();
+    _durationCtrl.dispose();
+    _categoryCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    try {
+      await _firestoreService.updateCourse(
+        courseId: widget.course.id,
+        updates: {
+          'title': _titleCtrl.text.trim(),
+          'description': _descriptionCtrl.text.trim(),
+          'imageUrl': _imageUrlCtrl.text.trim(),
+          'price': double.tryParse(_priceCtrl.text) ?? 0.0,
+          'durationMinutes':
+              int.tryParse(_durationCtrl.text) ?? 60,
+          'category': _categoryCtrl.text.trim(),
+          'level': _selectedLevel,
+          'isFeatured': _isFeatured,
+        },
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Course updated successfully! ✅'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark;
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, 24 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textHint,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.edit_rounded,
+                    color: AppColors.warning, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Edit Course ✏️',
+                      style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      widget.course.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    CustomTextField(
+                      label: 'Course Title',
+                      hint: 'e.g. Flutter for Beginners',
+                      controller: _titleCtrl,
+                      prefixIcon: Icons.title_rounded,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Description
+                    CustomTextField(
+                      label: 'Description',
+                      hint: 'What will students learn?',
+                      controller: _descriptionCtrl,
+                      prefixIcon: Icons.description_rounded,
+                      maxLines: 3,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Image URL
+                    CustomTextField(
+                      label: 'Thumbnail URL',
+                      hint: 'https://...',
+                      controller: _imageUrlCtrl,
+                      prefixIcon: Icons.image_rounded,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Category
+                    CustomTextField(
+                      label: 'Category',
+                      hint: 'e.g. Business, Design, Tech',
+                      controller: _categoryCtrl,
+                      prefixIcon: Icons.category_rounded,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Price + Duration row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomTextField(
+                            label: 'Price (\$)',
+                            hint: '0.00',
+                            controller: _priceCtrl,
+                            prefixIcon: Icons.attach_money_rounded,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                    decimal: true),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: CustomTextField(
+                            label: 'Duration (min)',
+                            hint: '60',
+                            controller: _durationCtrl,
+                            prefixIcon: Icons.schedule_rounded,
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Level selector
+                    Text(
+                      'Level',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? AppColors.white
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: _levels.map((level) {
+                        final isSelected =
+                            _selectedLevel == level;
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(
+                                () => _selectedLevel = level),
+                            child: AnimatedContainer(
+                              duration:
+                                  const Duration(milliseconds: 200),
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : (isDark
+                                        ? AppColors.cardDark
+                                        : AppColors.surfaceLight),
+                                borderRadius:
+                                    BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : (isDark
+                                          ? AppColors.borderDark
+                                          : AppColors.borderLight),
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  level,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Featured toggle
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.cardDark
+                            : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.star_rounded,
+                              color: AppColors.warning, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Featured Course',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  'Show on the Featured section',
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _isFeatured,
+                            activeColor: AppColors.warning,
+                            onChanged: (val) =>
+                                setState(() => _isFeatured = val),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Save button
+                    GradientButton(
+                      label: 'Save Changes',
+                      isLoading: _isLoading,
+                      onPressed: _isLoading ? null : _submit,
+                      icon: const Icon(Icons.save_rounded,
+                          color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EditLessonSheet extends StatefulWidget {
+  final LessonModel lesson;
+  final String courseId;
+  const _EditLessonSheet(
+      {required this.lesson, required this.courseId});
+
+  @override
+  State<_EditLessonSheet> createState() => _EditLessonSheetState();
+}
+
+class _EditLessonSheetState extends State<_EditLessonSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final FirestoreService _firestoreService = FirestoreService();
+
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _notesCtrl;
+  late final TextEditingController _videoUrlCtrl;
+  late final TextEditingController _durationCtrl;
+  late final TextEditingController _orderCtrl;
+  late bool _isPreview;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill with existing lesson data
+    _titleCtrl =
+        TextEditingController(text: widget.lesson.title);
+    _notesCtrl =
+        TextEditingController(text: widget.lesson.notes);
+    _videoUrlCtrl =
+        TextEditingController(text: widget.lesson.videoUrl);
+    _durationCtrl = TextEditingController(
+        text: widget.lesson.durationMinutes.toString());
+    _orderCtrl = TextEditingController(
+        text: widget.lesson.order.toString());
+    _isPreview = widget.lesson.isPreview;
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _notesCtrl.dispose();
+    _videoUrlCtrl.dispose();
+    _durationCtrl.dispose();
+    _orderCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    try {
+      await _firestoreService.updateLesson(
+        lessonId: widget.lesson.id,
+        updates: {
+          'title': _titleCtrl.text.trim(),
+          'notes': _notesCtrl.text.trim(),
+          'videoUrl': _videoUrlCtrl.text.trim(),
+          'durationMinutes':
+              int.tryParse(_durationCtrl.text) ?? 30,
+          'order': int.tryParse(_orderCtrl.text) ?? 1,
+          'isPreview': _isPreview,
+        },
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Lesson updated successfully! ✅'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark;
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceDark : AppColors.white,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 12, 24, 24 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle bar
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textHint,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.edit_note_rounded,
+                    color: AppColors.warning, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Edit Lesson ✏️',
+                      style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      widget.lesson.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.dmSans(
+                          fontSize: 11,
+                          color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // Title
+                    CustomTextField(
+                      label: 'Lesson Title',
+                      hint: 'e.g. Introduction to Widgets',
+                      controller: _titleCtrl,
+                      prefixIcon: Icons.title_rounded,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Notes
+                    CustomTextField(
+                      label: 'Lesson Notes',
+                      hint: 'What will students learn?',
+                      controller: _notesCtrl,
+                      prefixIcon: Icons.notes_rounded,
+                      maxLines: 4,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Video URL
+                    CustomTextField(
+                      label: 'Video URL',
+                      hint: 'https://...',
+                      controller: _videoUrlCtrl,
+                      prefixIcon:
+                          Icons.play_circle_outline_rounded,
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Order + Duration row
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CustomTextField(
+                            label: 'Order',
+                            hint: '1',
+                            controller: _orderCtrl,
+                            prefixIcon:
+                                Icons.format_list_numbered_rounded,
+                            keyboardType: TextInputType.number,
+                            validator: (v) =>
+                                v == null || v.isEmpty
+                                    ? 'Required'
+                                    : null,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: CustomTextField(
+                            label: 'Duration (min)',
+                            hint: '30',
+                            controller: _durationCtrl,
+                            prefixIcon: Icons.schedule_rounded,
+                            keyboardType: TextInputType.number,
+                            validator: (v) =>
+                                v == null || v.isEmpty
+                                    ? 'Required'
+                                    : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Free preview toggle
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.cardDark
+                            : AppColors.surfaceLight,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.lock_open_rounded,
+                              color: AppColors.accent, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Free Preview',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                                Text(
+                                  'Allow non-enrolled students to watch',
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _isPreview,
+                            activeColor: AppColors.accent,
+                            onChanged: (val) =>
+                                setState(() => _isPreview = val),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Save button
+                    GradientButton(
+                      label: 'Save Changes',
+                      isLoading: _isLoading,
+                      onPressed: _isLoading ? null : _submit,
+                      icon: const Icon(Icons.save_rounded,
+                          color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

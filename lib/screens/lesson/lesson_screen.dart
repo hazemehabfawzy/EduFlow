@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
@@ -65,6 +66,7 @@ class _LessonScreenState extends State<LessonScreen> {
       body: Column(
         children: [
           _buildHeader(isDark),
+          if (_lesson.videoUrl.isNotEmpty) _buildVideoSection(isDark),
           Expanded(child: _buildNotes(isDark)),
           _buildActionBar(isDark),
         ],
@@ -246,6 +248,34 @@ class _LessonScreenState extends State<LessonScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Take Quiz button
+          StreamBuilder<List<dynamic>>(
+            stream: _service.streamLessonQuizzes(_lesson.id),
+            builder: (context, snapshot) {
+              final quizzes = snapshot.data ?? [];
+              if (quizzes.isEmpty) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: GradientButton(
+                  label: 'Take Quiz (${quizzes.length} questions)',
+                  onPressed: () {
+                    Navigator.of(context).pushNamed(
+                      AppRoutes.quiz,
+                      arguments: {
+                        'lessonId': _lesson.id,
+                        'courseId': _courseId,
+                        'courseTitle': _lesson.title,
+                        'userId': _enrollment?.userId ?? '',
+                      },
+                    );
+                  },
+                  gradientColors: const [AppColors.secondary, AppColors.accent],
+                  icon: const Icon(Icons.quiz_rounded,
+                      color: AppColors.white, size: 18),
+                ),
+              );
+            },
+          ),
           // Mark complete
           if (_enrollment != null && !_isCompleted)
             Padding(
@@ -569,6 +599,114 @@ class _LessonScreenState extends State<LessonScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoSection(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: GestureDetector(
+        onTap: () async {
+          try {
+            String videoUrlStr = _lesson.videoUrl.trim().replaceAll(' ', '');
+            if (!videoUrlStr.startsWith('http://') && !videoUrlStr.startsWith('https://')) {
+              videoUrlStr = 'https://$videoUrlStr';
+            }
+            final url = Uri.parse(videoUrlStr);
+            bool success = await launchUrl(url, mode: LaunchMode.platformDefault);
+            if (!success) {
+              success = await launchUrl(url, mode: LaunchMode.externalApplication);
+            }
+            if (!success && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not open video URL')),
+              );
+            }
+          } catch (e) {
+            try {
+              String videoUrlStr = _lesson.videoUrl.trim().replaceAll(' ', '');
+              if (!videoUrlStr.startsWith('http://') && !videoUrlStr.startsWith('https://')) {
+                videoUrlStr = 'https://$videoUrlStr';
+              }
+              final url = Uri.parse(videoUrlStr);
+              await launchUrl(url);
+            } catch (innerError) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not open video: $innerError')),
+                );
+              }
+            }
+          }
+        },
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withOpacity(0.9),
+                AppColors.accent.withOpacity(0.8),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.play_circle_filled_rounded,
+                  color: AppColors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Watch Video Lesson',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Tap to open video in browser',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: AppColors.white.withOpacity(0.8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.open_in_new_rounded,
+                color: AppColors.white,
+                size: 20,
+              ),
+            ],
+          ),
         ),
       ),
     );

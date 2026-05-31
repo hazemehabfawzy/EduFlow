@@ -5,13 +5,14 @@ A modern Flutter educational app built with Firebase.
 ## Features
 - 🔐 Role-based auth (Admin / Teacher / Student)
 - 📚 Course browsing with search and category filter
-- 🎬 Lesson viewer with progress tracking
+- 🎬 Lesson viewer with video URL support
+- ✅ Quiz system per lesson with MCQ and scoring
 - ⭐ Course rating system
 - 🔔 In-app notification center
-- 📊 Admin analytics dashboard (fl_chart)
-- 🌙 Dark mode with persistence
-- 👨🏫 Teacher dashboard with lesson management
-- 📧 Enrollment confirmation emails (Firebase Functions)
+- 📊 Admin analytics dashboard
+- 🌙 Dark mode
+- 👨🏫 Teacher dashboard with lesson/course management
+- 📈 Student progress tracking
 
 ## Tech Stack
 - Flutter 3.x
@@ -20,15 +21,8 @@ A modern Flutter educational app built with Firebase.
 - fl_chart for analytics
 - Google Fonts (Poppins + DM Sans)
 
-## Accounts
-See `accounts.txt` for login credentials.
-
 ## Setup
-1. Clone the repo
-2. Run `flutter pub get`
-3. Add your `google-services.json` to `android/app/`
-4. Add your `serviceAccountKey.json` to root (not committed)
-5. Run `flutter run`
+See SETUP.md for full installation instructions.
 
-## Firebase Rules
-See Firebase Console for Firestore security rules.
+## Accounts
+See accounts.txt for test login credentials.
