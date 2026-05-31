@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 
 /// Animated splash screen.
 /// Waits at least 2.5 seconds, then routes to Home or Auth
@@ -52,12 +53,20 @@ class _SplashScreenState extends State<SplashScreen>
     final auth = context.read<AuthProvider>();
     if (!auth.isAuthenticated) {
       Navigator.of(context).pushReplacementNamed(AppRoutes.auth);
-    } else if (auth.currentUser!.isTeacher) {
-      Navigator.of(context).pushReplacementNamed(AppRoutes.teacherDashboard);
     } else {
-      // Both admin and student land on HomeScreen.
-      // Admin sees the admin panel button in the AppBar.
-      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+      // START NOTIFICATIONS HERE for already-logged-in users
+      context
+          .read<NotificationProvider>()
+          .startListening(auth.currentUser!.uid);
+
+      if (auth.currentUser!.isTeacher) {
+        Navigator.of(context)
+            .pushReplacementNamed(AppRoutes.teacherDashboard);
+      } else {
+        // Both admin and student land on HomeScreen.
+        // Admin sees the admin panel button in the AppBar.
+        Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+      }
     }
   }
 

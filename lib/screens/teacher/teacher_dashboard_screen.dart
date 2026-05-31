@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../providers/theme_provider.dart';
 import '../../core/constants/app_colors.dart';
@@ -12,6 +13,11 @@ import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../models/lesson_model.dart';
+import '../../widgets/course_enrollments_sheet.dart';
+import '../../providers/notification_provider.dart';
+import '../../widgets/notification_bell.dart';
+import '../../services/auth_session_service.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -22,6 +28,38 @@ class TeacherDashboardScreen extends StatefulWidget {
 
 class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   final FirestoreService _firestoreService = FirestoreService();
+
+  void _showAddLessonSheet(BuildContext context, CourseModel course) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _AddLessonSheet(course: course),
+    );
+  }
+
+  void _showLessonsSheet(BuildContext context, CourseModel course) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _ViewLessonsSheet(course: course),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AuthSessionService.startMonitoring(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    AuthSessionService.stopMonitoring();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +122,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                 backgroundColor: AppColors.primary,
                 surfaceTintColor: AppColors.primary,
                 actions: [
+                  const NotificationBell(),
                   IconButton(
                     tooltip: 'Toggle Dark Mode',
                     icon: Icon(
@@ -359,126 +398,196 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Left border indicator corresponding to level
-            Container(
-              width: 5,
-              color: levelColor,
-            ),
-            // Course Image
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(course.imageUrl),
-                  fit: BoxFit.cover,
+      child: Column(
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Left border indicator corresponding to level
+                Container(
+                  width: 5,
+                  color: levelColor,
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Course Info
-            Expanded(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      course.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? AppColors.white : AppColors.textPrimary,
-                      ),
+                // Course Image
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: NetworkImage(course.imageUrl),
+                      fit: BoxFit.cover,
                     ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            course.category,
-                            style: GoogleFonts.poppins(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: levelColor.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            course.level,
-                            style: GoogleFonts.poppins(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: levelColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Row(
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Course Info
+                Expanded(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.people_alt_rounded,
-                                size: 12, color: AppColors.textHint),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${course.totalStudents} stud.',
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 11, color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            const Icon(Icons.play_circle_fill_rounded,
-                                size: 12, color: AppColors.textHint),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${course.totalLessons} less.',
-                              style: GoogleFonts.dmSans(
-                                  fontSize: 11, color: AppColors.textSecondary),
-                            ),
-                          ],
-                        ),
                         Text(
-                          course.formattedDuration,
+                          course.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? AppColors.white : AppColors.textPrimary,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                course.category,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: levelColor.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                course.level,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: levelColor,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.people_alt_rounded,
+                                    size: 12, color: AppColors.textHint),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${course.totalStudents} stud.',
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 11, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                const Icon(Icons.play_circle_fill_rounded,
+                                    size: 12, color: AppColors.textHint),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${course.totalLessons} less.',
+                                  style: GoogleFonts.dmSans(
+                                      fontSize: 11, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              course.formattedDuration,
+                              style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary),
+                            ),
+                          ],
                         ),
                       ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          side: const BorderSide(
+                              color: AppColors.primary, width: 1.5),
+                          foregroundColor: AppColors.primary,
+                        ),
+                        icon: const Icon(Icons.add_rounded, size: 16),
+                        label: Text('Add Lesson',
+                            style: GoogleFonts.poppins(
+                                fontSize: 12, fontWeight: FontWeight.w600)),
+                        onPressed: () =>
+                            _showAddLessonSheet(context, course),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          side: const BorderSide(
+                              color: AppColors.accent, width: 1.5),
+                          foregroundColor: AppColors.accent,
+                        ),
+                        icon: const Icon(Icons.list_rounded, size: 16),
+                        label: Text('View Lessons',
+                            style: GoogleFonts.poppins(
+                                fontSize: 12, fontWeight: FontWeight.w600)),
+                        onPressed: () =>
+                            _showLessonsSheet(context, course),
+                      ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Icon(Icons.analytics_rounded, size: 16, color: Colors.white),
+                    label: Text('Track Students & Ratings',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+                    onPressed: () =>
+                        CourseEnrollmentsSheet.show(context, course),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -529,6 +638,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
 
     if (confirmed == true && mounted) {
+      context.read<NotificationProvider>().stopListening();
       await context.read<AuthProvider>().signOut();
       if (mounted) {
         Navigator.of(context)
@@ -930,6 +1040,418 @@ class _AddCourseSheetState extends State<_AddCourseSheet> {
                   ],
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddLessonSheet extends StatefulWidget {
+  final CourseModel course;
+  const _AddLessonSheet({required this.course});
+
+  @override
+  State<_AddLessonSheet> createState() => _AddLessonSheetState();
+}
+
+class _AddLessonSheetState extends State<_AddLessonSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+  final _videoUrlCtrl = TextEditingController();
+  final _durationCtrl = TextEditingController(text: '30');
+  final _orderCtrl = TextEditingController(text: '1');
+  bool _isPreview = false;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _notesCtrl.dispose();
+    _videoUrlCtrl.dispose();
+    _durationCtrl.dispose();
+    _orderCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      final docRef =
+          FirebaseFirestore.instance.collection('lessons').doc();
+      await docRef.set({
+        'id': docRef.id,
+        'courseId': widget.course.id,
+        'title': _titleCtrl.text.trim(),
+        'videoUrl': _videoUrlCtrl.text.trim(),
+        'notes': _notesCtrl.text.trim(),
+        'order': int.tryParse(_orderCtrl.text) ?? 1,
+        'durationMinutes':
+            int.tryParse(_durationCtrl.text) ?? 30,
+        'isPreview': _isPreview,
+      });
+
+      await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(widget.course.id)
+          .update(
+              {'totalLessons': FieldValue.increment(1)});
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Lesson "${_titleCtrl.text}" added successfully!'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to add lesson: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark;
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color:
+            isDark ? AppColors.surfaceDark : AppColors.white,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding:
+          EdgeInsets.fromLTRB(24, 12, 24, 24 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textHint,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('Add New Lesson ➕',
+              style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700)),
+          Text('Course: ${widget.course.title}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: AppColors.textSecondary)),
+          const SizedBox(height: 20),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(children: [
+                  CustomTextField(
+                    label: 'Lesson Title',
+                    hint: 'e.g. Introduction to Flutter Widgets',
+                    controller: _titleCtrl,
+                    prefixIcon: Icons.title_rounded,
+                    validator: (v) =>
+                        v == null || v.isEmpty
+                            ? 'Required'
+                            : null,
+                  ),
+                  const SizedBox(height: 14),
+                  CustomTextField(
+                    label: 'Lesson Notes',
+                    hint:
+                        'What will students learn in this lesson?',
+                    controller: _notesCtrl,
+                    prefixIcon: Icons.notes_rounded,
+                    maxLines: 4,
+                    validator: (v) =>
+                        v == null || v.isEmpty
+                            ? 'Required'
+                            : null,
+                  ),
+                  const SizedBox(height: 14),
+                  CustomTextField(
+                    label: 'Video URL (optional)',
+                    hint: 'https://...',
+                    controller: _videoUrlCtrl,
+                    prefixIcon:
+                        Icons.play_circle_outline_rounded,
+                  ),
+                  const SizedBox(height: 14),
+                  Row(children: [
+                    Expanded(
+                      child: CustomTextField(
+                        label: 'Order',
+                        hint: '1',
+                        controller: _orderCtrl,
+                        prefixIcon:
+                            Icons.format_list_numbered_rounded,
+                        keyboardType: TextInputType.number,
+                        validator: (v) =>
+                            v == null || v.isEmpty
+                                ? 'Required'
+                                : null,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: CustomTextField(
+                        label: 'Duration (min)',
+                        hint: '30',
+                        controller: _durationCtrl,
+                        prefixIcon: Icons.schedule_rounded,
+                        keyboardType: TextInputType.number,
+                        validator: (v) =>
+                            v == null || v.isEmpty
+                                ? 'Required'
+                                : null,
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppColors.cardDark
+                          : AppColors.surfaceLight,
+                      borderRadius:
+                          BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.borderDark
+                            : AppColors.borderLight,
+                      ),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.lock_open_rounded,
+                          color: AppColors.accent, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text('Free Preview',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight:
+                                        FontWeight.w600)),
+                            Text(
+                                'Allow non-enrolled students to watch',
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: AppColors
+                                        .textSecondary)),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _isPreview,
+                        activeColor: AppColors.accent,
+                        onChanged: (val) => setState(
+                            () => _isPreview = val),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 24),
+                  GradientButton(
+                    label: 'Add Lesson',
+                    isLoading: _isLoading,
+                    onPressed:
+                        _isLoading ? null : _submit,
+                    icon: const Icon(Icons.add_rounded,
+                        color: Colors.white, size: 18),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViewLessonsSheet extends StatelessWidget {
+  final CourseModel course;
+  const _ViewLessonsSheet({required this.course});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark;
+    final firestoreService = FirestoreService();
+
+    return Container(
+      decoration: BoxDecoration(
+        color:
+            isDark ? AppColors.surfaceDark : AppColors.white,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textHint,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('Lessons — ${course.title}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 400,
+            child: StreamBuilder<List<LessonModel>>(
+              stream:
+                  firestoreService.streamLessons(course.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.primary));
+                }
+                final lessons = snapshot.data ?? [];
+                if (lessons.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment:
+                          MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                            Icons.video_library_outlined,
+                            size: 48,
+                            color: AppColors.textHint),
+                        const SizedBox(height: 12),
+                        Text('No lessons yet',
+                            style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors
+                                    .textSecondary)),
+                      ],
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  itemCount: lessons.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: 10),
+                  itemBuilder: (_, i) {
+                    final lesson = lessons[i];
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.cardDark
+                            : AppColors.surfaceLight,
+                        borderRadius:
+                            BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.borderDark
+                              : AppColors.borderLight,
+                        ),
+                      ),
+                      child: Row(children: [
+                        Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary
+                                .withOpacity(0.1),
+                            borderRadius:
+                                BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: Text('${lesson.order}',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight:
+                                        FontWeight.w700,
+                                    color:
+                                        AppColors.primary)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(lesson.title,
+                                  maxLines: 1,
+                                  overflow:
+                                      TextOverflow.ellipsis,
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight:
+                                          FontWeight.w600)),
+                              Text(
+                                '${lesson.durationMinutes}min'
+                                '${lesson.isPreview ? " · Free Preview" : ""}',
+                                style: GoogleFonts.dmSans(
+                                    fontSize: 11,
+                                    color: AppColors
+                                        .textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: AppColors.error,
+                              size: 18),
+                          onPressed: () async {
+                            await FirebaseFirestore.instance
+                                .collection('lessons')
+                                .doc(lesson.id)
+                                .delete();
+                            await FirebaseFirestore.instance
+                                .collection('courses')
+                                .doc(course.id)
+                                .update({
+                              'totalLessons':
+                                  FieldValue.increment(-1)
+                            });
+                          },
+                        ),
+                      ]),
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],

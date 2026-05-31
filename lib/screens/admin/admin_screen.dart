@@ -10,6 +10,11 @@ import '../../models/course_model.dart';
 import '../../models/user_model.dart';
 import '../../services/firestore_service.dart';
 
+import '../../services/auth_session_service.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../../widgets/course_enrollments_sheet.dart';
+import '../../widgets/notification_bell.dart';
+
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
 
@@ -26,10 +31,14 @@ class _AdminScreenState extends State<AdminScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AuthSessionService.startMonitoring(context);
+    });
   }
 
   @override
   void dispose() {
+    AuthSessionService.stopMonitoring();
     _tabController.dispose();
     super.dispose();
   }
@@ -64,6 +73,7 @@ class _AdminScreenState extends State<AdminScreen>
           },
         ),
         actions: [
+          const NotificationBell(),
           IconButton(
             tooltip: 'Toggle Dark Mode',
             icon: Icon(
@@ -171,12 +181,11 @@ class _TeacherCard extends StatelessWidget {
       builder: (context, snapshot) {
         final courses = snapshot.data ?? [];
         
-        // Calculate average rating out of 4.0
-        // Firebase stores rating out of 5, convert: (rating/5)*4
+        // Calculate average rating out of 5.0
+        // Firebase stores rating out of 5
         final avgRating = courses.isEmpty
             ? 0.0
             : courses.fold<double>(0, (sum, c) => sum + c.rating) / courses.length;
-        final ratingOutOf4 = (avgRating / 5.0) * 4.0;
         final totalEnrollments = courses.fold<int>(0, (sum, c) => sum + c.totalStudents);
 
         return Container(
@@ -223,11 +232,10 @@ class _TeacherCard extends StatelessWidget {
                           Text(teacher.email,
                             style: GoogleFonts.dmSans(fontSize: 12, color: AppColors.textSecondary)),
                           const SizedBox(height: 6),
-                          // Rating out of 4 + star display
                           Row(
                             children: [
-                              ...List.generate(4, (i) => Icon(
-                                i < ratingOutOf4.round()
+                              ...List.generate(5, (i) => Icon(
+                                i < avgRating.round()
                                     ? Icons.star_rounded
                                     : Icons.star_border_rounded,
                                 color: AppColors.warning,
@@ -235,7 +243,7 @@ class _TeacherCard extends StatelessWidget {
                               )),
                               const SizedBox(width: 6),
                               Text(
-                                '${ratingOutOf4.toStringAsFixed(1)} / 4.0',
+                                '${avgRating.toStringAsFixed(1)} / 5.0',
                                 style: GoogleFonts.poppins(
                                   fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.warning,
                                 ),
@@ -272,8 +280,11 @@ class _TeacherCard extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     final course = courses[i];
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    return InkWell(
+                      onTap: () => CourseEnrollmentsSheet.show(context, course),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
                         borderRadius: BorderRadius.circular(12),
@@ -302,7 +313,7 @@ class _TeacherCard extends StatelessWidget {
                                     const SizedBox(width: 12),
                                     Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
                                     const SizedBox(width: 4),
-                                    Text('${((course.rating / 5.0) * 4.0).toStringAsFixed(1)}/4.0',
+                                    Text('${course.rating.toStringAsFixed(1)}/5.0',
                                       style: GoogleFonts.dmSans(fontSize: 11, color: AppColors.warning)),
                                   ],
                                 ),
@@ -317,7 +328,8 @@ class _TeacherCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                    );
+                    ),
+                  );
                   },
                 ),
             ],
@@ -388,7 +400,10 @@ class _CoursesTab extends StatelessWidget {
           separatorBuilder: (_, __) => const SizedBox(height: 16),
           itemBuilder: (context, index) {
             final course = courses[index];
-            return Container(
+            return InkWell(
+              onTap: () => CourseEnrollmentsSheet.show(context, course),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
               decoration: BoxDecoration(
                 color: isDark ? AppColors.cardDark : AppColors.white,
                 borderRadius: BorderRadius.circular(20),
@@ -515,8 +530,9 @@ class _CoursesTab extends StatelessWidget {
                   ),
                 ],
               ),
-            )
-                .animate()
+            ),
+          )
+              .animate()
                 .fadeIn(
                     duration: 350.ms, delay: Duration(milliseconds: 50 * index))
                 .slideY(begin: 0.05);
@@ -601,6 +617,24 @@ class _AnalyticsTab extends StatelessWidget {
     };
   }
 
+  Color _getCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'development':
+      case 'programming':
+        return AppColors.primary;
+      case 'design':
+        return AppColors.accent;
+      case 'business':
+        return AppColors.warning;
+      case 'marketing':
+        return AppColors.error;
+      case 'data science':
+        return AppColors.success;
+      default:
+        return const Color(0xFF9E9E9E);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, int>>(
@@ -621,7 +655,7 @@ class _AnalyticsTab extends StatelessWidget {
 
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -635,54 +669,276 @@ class _AnalyticsTab extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'High-performance aggregations dynamically counted server-side.',
+                'Dynamic metrics aggregated from active database collections.',
                 style: GoogleFonts.dmSans(
                     fontSize: 12, color: AppColors.textSecondary),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // Metric Tile 1: Total Users
-              _buildMetricTile(
-                context,
-                title: 'Total Active Users',
-                value: data['users'].toString(),
-                subtitle: 'Students, Teachers & Administrators',
-                icon: Icons.people_alt_rounded,
-                iconBgColor: AppColors.primary.withOpacity(0.12),
-                iconColor: AppColors.primary,
-              ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.05),
+              // Summary metric tiles
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricTile(
+                      'Users',
+                      data['users'].toString(),
+                      Icons.people_alt_rounded,
+                      AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMetricTile(
+                      'Courses',
+                      data['courses'].toString(),
+                      Icons.book_rounded,
+                      AppColors.success,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMetricTile(
+                      'Enrollments',
+                      data['enrollments'].toString(),
+                      Icons.school_rounded,
+                      AppColors.accent,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+
+              // Bar Chart comparing metrics
+              Text(
+                'Platform Statistics Comparison 📊',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.white : AppColors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 16),
+              Container(
+                height: 220,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.cardDark : AppColors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    width: 1.5,
+                  ),
+                ),
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: [data['users']!, data['courses']!, data['enrollments']!]
+                            .reduce((a, b) => a > b ? a : b)
+                            .toDouble() + 5,
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) => isDark ? AppColors.cardDark : AppColors.white,
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          return BarTooltipItem(
+                            '${rod.toY.toInt()}',
+                            GoogleFonts.poppins(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 30,
+                          getTitlesWidget: (value, meta) {
+                            String text = '';
+                            switch (value.toInt()) {
+                              case 0:
+                                text = 'Users';
+                                break;
+                              case 1:
+                                text = 'Courses';
+                                break;
+                              case 2:
+                                text = 'Enrollments';
+                                break;
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                text,
+                                style: GoogleFonts.dmSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    gridData: const FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    barGroups: [
+                      BarChartGroupData(
+                        x: 0,
+                        barRods: [
+                          BarChartRodData(
+                            toY: data['users']!.toDouble(),
+                            color: AppColors.primary,
+                            width: 16,
+                            borderRadius: BorderRadius.circular(4),
+                          )
+                        ],
+                      ),
+                      BarChartGroupData(
+                        x: 1,
+                        barRods: [
+                          BarChartRodData(
+                            toY: data['courses']!.toDouble(),
+                            color: AppColors.success,
+                            width: 16,
+                            borderRadius: BorderRadius.circular(4),
+                          )
+                        ],
+                      ),
+                      BarChartGroupData(
+                        x: 2,
+                        barRods: [
+                          BarChartRodData(
+                            toY: data['enrollments']!.toDouble(),
+                            color: AppColors.accent,
+                            width: 16,
+                            borderRadius: BorderRadius.circular(4),
+                          )
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
 
-              // Metric Tile 2: Total Courses
-              _buildMetricTile(
-                context,
-                title: 'Total Courses Seeded',
-                value: data['courses'].toString(),
-                subtitle: 'Across Development, Design & Cloud',
-                icon: Icons.book_rounded,
-                iconBgColor: AppColors.success.withOpacity(0.12),
-                iconColor: AppColors.success,
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: 100.ms)
-                  .slideX(begin: -0.05),
+              // Pie Chart Category Breakdown
+              Text(
+                'Seeded Courses by Category 🎨',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? AppColors.white : AppColors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 16),
+              StreamBuilder<List<CourseModel>>(
+                stream: firestoreService.streamAllCourses(),
+                builder: (context, courseSnap) {
+                  final courses = courseSnap.data ?? [];
+                  if (courses.isEmpty) {
+                    return Container(
+                      height: 150,
+                      alignment: Alignment.center,
+                      child: Text(
+                        'No courses found for distribution.',
+                        style: GoogleFonts.dmSans(color: AppColors.textHint),
+                      ),
+                    );
+                  }
 
-              // Metric Tile 3: Total Enrollments
-              _buildMetricTile(
-                context,
-                title: 'Total Active Enrollments',
-                value: data['enrollments'].toString(),
-                subtitle: 'Real-time student course subscriptions',
-                icon: Icons.school_rounded,
-                iconBgColor: AppColors.accent.withOpacity(0.12),
-                iconColor: AppColors.accent,
-              )
-                  .animate()
-                  .fadeIn(duration: 400.ms, delay: 200.ms)
-                  .slideX(begin: -0.05),
+                  final categoryCounts = <String, int>{};
+                  for (var course in courses) {
+                    categoryCounts[course.category] =
+                        (categoryCounts[course.category] ?? 0) + 1;
+                  }
 
-              const SizedBox(height: 40),
+                  final pieSections = categoryCounts.entries.map((entry) {
+                    final percentage = (entry.value / courses.length) * 100;
+                    return PieChartSectionData(
+                      color: _getCategoryColor(entry.key),
+                      value: entry.value.toDouble(),
+                      title: '${percentage.toStringAsFixed(0)}%',
+                      radius: 50,
+                      titleStyle: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    );
+                  }).toList();
+
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.cardDark : AppColors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 160,
+                          child: PieChart(
+                            PieChartData(
+                              sectionsSpace: 4,
+                              centerSpaceRadius: 30,
+                              sections: pieSections,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          alignment: WrapAlignment.center,
+                          children: categoryCounts.keys.map((cat) {
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: _getCategoryColor(cat),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '$cat (${categoryCounts[cat]})',
+                                  style: GoogleFonts.dmSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppColors.white : AppColors.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
             ],
           ),
         );
@@ -691,70 +947,49 @@ class _AnalyticsTab extends StatelessWidget {
   }
 
   Widget _buildMetricTile(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required Color iconBgColor,
-    required Color iconColor,
-  }) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.cardDark : AppColors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? AppColors.borderDark : AppColors.borderLight,
           width: 1.5,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withOpacity(0.02),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          )
-        ],
       ),
-      child: Row(
+      child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-                color: iconBgColor, borderRadius: BorderRadius.circular(16)),
-            child: Icon(icon, color: iconColor, size: 28),
+              color: color.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: GoogleFonts.poppins(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: isDark ? AppColors.white : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.dmSans(
-                    fontSize: 11,
-                    color: AppColors.textHint,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: isDark ? AppColors.white : AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.dmSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
             ),
           ),
         ],

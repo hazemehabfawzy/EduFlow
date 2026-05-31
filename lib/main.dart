@@ -5,12 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-
+import 'dart:async';
 import 'core/constants/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/course_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/notification_provider.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/auth/auth_screen.dart';
 import 'screens/home/home_screen.dart';
@@ -20,6 +21,8 @@ import 'screens/quiz/quiz_screen.dart';
 import 'screens/admin/admin_screen.dart';
 import 'screens/teacher/teacher_dashboard_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/notifications/notifications_screen.dart';
+import 'services/notification_service.dart';
 import 'firebase_options.dart'; // ← Uncomment after `flutterfire configure`
 
 void main() {
@@ -33,12 +36,15 @@ void main() {
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
 
+    await NotificationService.initialize(); // ADD THIS
+
     runApp(
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider()),
           ChangeNotifierProvider(create: (_) => CourseProvider()),
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ],
         child: const EduFlowApp(),
       ),
@@ -75,6 +81,7 @@ class _EduFlowAppState extends State<EduFlowApp> {
         AppRoutes.admin: (_) => const AdminScreen(),
         AppRoutes.teacherDashboard: (_) => const TeacherDashboardScreen(),
         AppRoutes.profile: (_) => const ProfileScreen(),
+        AppRoutes.notifications: (_) => const NotificationsScreen(),
       },
       onUnknownRoute: (_) => MaterialPageRoute(
         builder: (_) => const Scaffold(

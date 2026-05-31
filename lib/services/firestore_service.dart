@@ -1,9 +1,12 @@
 // lib/services/firestore_service.dart
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/course_model.dart';
 import '../models/lesson_model.dart';
 import '../models/enrollment_model.dart';
 import '../models/user_model.dart';
+import '../models/notification_model.dart';
+
 
 /// Single point of access for all Firestore operations.
 /// Screens and providers call this service — never FirebaseFirestore directly.
@@ -176,6 +179,31 @@ class FirestoreService {
       'totalStudents': FieldValue.increment(1),
     });
 
+    // ── NEW: Get student name and notify teacher ──
+    try {
+      final userDoc =
+          await _db.collection('users').doc(userId).get();
+      final studentName = userDoc.data()?['name'] as String? ??
+          'A student';
+      final courseDoc = await _courses.doc(courseId).get();
+      final courseData =
+          courseDoc.data() as Map<String, dynamic>?;
+      final courseTitle =
+          courseData?['title'] as String? ?? 'the course';
+      final courseImage =
+          courseData?['imageUrl'] as String?;
+
+      unawaited(notifyTeacherNewEnrollment(
+        courseId: courseId,
+        courseTitle: courseTitle,
+        studentName: studentName,
+        studentId: userId,
+        courseImageUrl: courseImage,
+      ));
+    } catch (e) {
+      print('[Firestore] enrollment notification error: $e');
+    }
+
     return enrollment;
   }
 
@@ -229,6 +257,14 @@ class FirestoreService {
   /// Add a new course.
   Future<void> addCourse(CourseModel course) async {
     await _courses.doc(course.id).set(course.toMap());
+
+    // ── NEW: Notify all students ──
+    unawaited(notifyAllStudentsNewCourse(
+      courseId: course.id,
+      courseTitle: course.title,
+      instructorName: course.instructorName,
+      imageUrl: course.imageUrl,
+    ));
   }
 
   /// Delete a course and all associated lessons, quizzes, and enrollments.
@@ -336,6 +372,342 @@ class FirestoreService {
     } catch (e) {
       print('[Firestore] countEnrollments error: $e');
       return 0;
+    }
+  }
+
+  Future<void> submitCourseRating({
+    required String courseId,
+    required String userId,
+    required double rating,
+  }) async {
+    try {
+      final ratingsRef = _db
+          .collection('courses')
+          .doc(courseId)
+          .collection('ratings')
+          .doc(userId);
+
+      await ratingsRef.set({
+        'userId': userId,
+        'rating': rating,
+        'submittedAt': FieldValue.serverTimestamp(),
+      });
+
+      final allRatings = await _db
+          .collection('courses')
+          .doc(courseId)
+          .collection('ratings')
+          .get();
+
+      if (allRatings.docs.isEmpty) return;
+
+      final total = allRatings.docs
+          .map((d) => (d.data()['rating'] as num).toDouble())
+          .reduce((a, b) => a + b);
+      final average = total / allRatings.docs.length;
+
+      await _courses.doc(courseId).update({
+        'rating': double.parse(average.toStringAsFixed(1)),
+      });
+
+      // Get student name for the notification
+      try {
+        final userDoc =
+            await _db.collection('users').doc(userId).get();
+        final studentName = userDoc.data()?['name'] as String? ??
+            'A student';
+        final courseDoc = await _courses.doc(courseId).get();
+        final courseTitle =
+            (courseDoc.data() as Map<String, dynamic>?)?['title']
+                as String? ?? 'the course';
+
+        unawaited(notifyTeacherNewRating(
+          courseId: courseId,
+          courseTitle: courseTitle,
+          studentName: studentName,
+          rating: rating,
+        ));
+      } catch (e) {
+        print('[Firestore] rating notification error: $e');
+      }
+    } catch (e) {
+      print('[FirestoreService] submitCourseRating error: $e');
+    }
+  }
+
+  Future<double?> getUserRating({
+    required String courseId,
+    required String userId,
+  }) async {
+    try {
+      final doc = await _db
+          .collection('courses')
+          .doc(courseId)
+          .collection('ratings')
+          .doc(userId)
+          .get();
+      if (!doc.exists) return null;
+      return (doc.data()?['rating'] as num?)?.toDouble();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Stream<List<Map<String, dynamic>>> streamCourseRatings(String courseId) {
+    return _db
+        .collection('courses')
+        .doc(courseId)
+        .collection('ratings')
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => d.data()).toList())
+        .handleError((error) {
+      print('[Firestore] streamCourseRatings error: $error');
+      return <Map<String, dynamic>>[];
+    });
+  }
+
+  // ══════════════════════════════════════════════════════
+  // NOTIFICATIONS
+  // ══════════════════════════════════════════════════════
+
+  CollectionReference get _notifications =>
+      _db.collection('notifications');
+
+  /// Stream notifications for a specific user, newest first
+  Stream<List<NotificationModel>> streamUserNotifications(
+      String userId) {
+    return _notifications
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((d) => NotificationModel.fromMap(
+                d.data() as Map<String, dynamic>, d.id))
+            .toList())
+        .handleError((e) {
+      print('[Firestore] streamUserNotifications error: $e');
+      return <NotificationModel>[];
+    });
+  }
+
+  /// Stream only unread count — used for bell badge
+  Stream<int> streamUnreadCount(String userId) {
+    return _notifications
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snap) => snap.docs.length)
+        .handleError((e) => 0);
+  }
+
+  /// Mark a single notification as read
+  Future<void> markNotificationRead(
+      String notificationId) async {
+    try {
+      await _notifications
+          .doc(notificationId)
+          .update({'isRead': true});
+    } catch (e) {
+      print('[Firestore] markNotificationRead error: $e');
+    }
+  }
+
+  /// Mark ALL notifications as read for a user
+  Future<void> markAllNotificationsRead(
+      String userId) async {
+    try {
+      final batch = _db.batch();
+      final snap = await _notifications
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .get();
+      for (final doc in snap.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+      await batch.commit();
+    } catch (e) {
+      print('[Firestore] markAllNotificationsRead error: $e');
+    }
+  }
+
+  /// Delete a single notification
+  Future<void> deleteNotification(
+      String notificationId) async {
+    try {
+      await _notifications.doc(notificationId).delete();
+    } catch (e) {
+      print('[Firestore] deleteNotification error: $e');
+    }
+  }
+
+  /// Create a notification document in Firestore
+  /// This is the SINGLE method all triggers call
+  Future<void> createNotification({
+    required String userId,
+    required String type,
+    required String title,
+    required String body,
+    String? imageUrl,
+    String? courseId,
+    required String receiverRole,
+  }) async {
+    try {
+      await _notifications.add({
+        'userId': userId,
+        'type': type,
+        'title': title,
+        'body': body,
+        'imageUrl': imageUrl,
+        'courseId': courseId,
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'receiverRole': receiverRole,
+      });
+    } catch (e) {
+      print('[Firestore] createNotification error: $e');
+    }
+  }
+
+  /// Called when teacher publishes a new course —
+  /// notifies ALL students
+  Future<void> notifyAllStudentsNewCourse({
+    required String courseId,
+    required String courseTitle,
+    required String instructorName,
+    String? imageUrl,
+  }) async {
+    try {
+      final studentsSnap = await _db
+          .collection('users')
+          .where('role', isEqualTo: 'student')
+          .get();
+
+      final batch = _db.batch();
+      for (final doc in studentsSnap.docs) {
+        final notifRef = _notifications.doc();
+        batch.set(notifRef, {
+          'userId': doc.id,
+          'type': 'new_course',
+          'title': '📚 New Course Available!',
+          'body':
+              '$instructorName just published "$courseTitle"',
+          'imageUrl': imageUrl,
+          'courseId': courseId,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'receiverRole': 'student',
+        });
+      }
+      await batch.commit();
+    } catch (e) {
+      print('[Firestore] notifyAllStudentsNewCourse error: $e');
+    }
+  }
+
+  /// Called when student enrolls — notifies the teacher
+  Future<void> notifyTeacherNewEnrollment({
+    required String courseId,
+    required String courseTitle,
+    required String studentName,
+    required String studentId,
+    String? courseImageUrl,
+  }) async {
+    try {
+      // Find the teacher who owns this course
+      final courseDoc =
+          await _courses.doc(courseId).get();
+      if (!courseDoc.exists) return;
+
+      final instructorName =
+          (courseDoc.data() as Map<String, dynamic>)['instructorName']
+              as String?;
+      if (instructorName == null) return;
+
+      final teacherSnap = await _db
+          .collection('users')
+          .where('name', isEqualTo: instructorName)
+          .where('role', isEqualTo: 'teacher')
+          .limit(1)
+          .get();
+
+      if (teacherSnap.docs.isEmpty) return;
+      final teacherId = teacherSnap.docs.first.id;
+
+      await createNotification(
+        userId: teacherId,
+        type: 'new_enrollment',
+        title: '🎉 New Student Enrolled!',
+        body: '$studentName enrolled in "$courseTitle"',
+        imageUrl: courseImageUrl,
+        courseId: courseId,
+        receiverRole: 'teacher',
+      );
+    } catch (e) {
+      print('[Firestore] notifyTeacherNewEnrollment error: $e');
+    }
+  }
+
+  /// Called when student completes a course —
+  /// notifies the student themselves
+  Future<void> notifyStudentCourseComplete({
+    required String studentId,
+    required String courseTitle,
+    required String courseId,
+    String? imageUrl,
+  }) async {
+    await createNotification(
+      userId: studentId,
+      type: 'course_complete',
+      title: '🏆 Course Completed!',
+      body:
+          'Amazing! You completed "$courseTitle". Rate it to help others.',
+      imageUrl: imageUrl,
+      courseId: courseId,
+      receiverRole: 'student',
+    );
+  }
+
+  /// Called when student submits a rating —
+  /// notifies the teacher
+  Future<void> notifyTeacherNewRating({
+    required String courseId,
+    required String courseTitle,
+    required String studentName,
+    required double rating,
+  }) async {
+    try {
+      final courseDoc =
+          await _courses.doc(courseId).get();
+      if (!courseDoc.exists) return;
+
+      final data =
+          courseDoc.data() as Map<String, dynamic>;
+      final instructorName =
+          data['instructorName'] as String?;
+      if (instructorName == null) return;
+
+      final teacherSnap = await _db
+          .collection('users')
+          .where('name', isEqualTo: instructorName)
+          .where('role', isEqualTo: 'teacher')
+          .limit(1)
+          .get();
+
+      if (teacherSnap.docs.isEmpty) return;
+      final teacherId = teacherSnap.docs.first.id;
+
+      await createNotification(
+        userId: teacherId,
+        type: 'new_rating',
+        title: '⭐ New Rating Received!',
+        body:
+            '$studentName rated "$courseTitle" ${rating.toInt()}/5 stars',
+        courseId: courseId,
+        receiverRole: 'teacher',
+      );
+    } catch (e) {
+      print('[Firestore] notifyTeacherNewRating error: $e');
     }
   }
 }

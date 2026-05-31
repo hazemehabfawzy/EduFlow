@@ -13,6 +13,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/course_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/gradient_button.dart';
+import '../../widgets/rating_dialog.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   const CourseDetailScreen({super.key});
@@ -481,37 +482,71 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           ),
         ],
       ),
-      child: enrollment == null
-          ? GradientButton(
-              label: 'Enroll for Free',
-              isLoading: isEnrolling,
-              onPressed:
-                  isEnrolling ? null : () => _enrollInCourse(course, userId),
-              icon: const Icon(Icons.rocket_launch_rounded,
-                  color: AppColors.white, size: 18),
-            )
-          : enrollment.isCompleted
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (enrollment != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: TextButton.icon(
+                onPressed: () async {
+                  final existingRating =
+                      await _firestoreService.getUserRating(
+                    courseId: course.id,
+                    userId: userId,
+                  );
+                  if (context.mounted) {
+                    RatingDialog.show(
+                      context,
+                      courseId: course.id,
+                      courseTitle: course.title,
+                      userId: userId,
+                      existingRating: existingRating,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.star_rounded,
+                    color: AppColors.warning),
+                label: Text('Rate this course',
+                    style: GoogleFonts.poppins(
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    )),
+              ),
+            ),
+          enrollment == null
               ? GradientButton(
-                  label: '🎉  Course Completed!',
-                  gradientColors: const [AppColors.success, AppColors.accent],
-                  onPressed: () {},
+                  label: 'Enroll for Free',
+                  isLoading: isEnrolling,
+                  onPressed:
+                      isEnrolling ? null : () => _enrollInCourse(course, userId),
+                  icon: const Icon(Icons.rocket_launch_rounded,
+                      color: AppColors.white, size: 18),
                 )
-              : GradientButton(
-                  label: nextLesson != null
-                      ? 'Continue: ${nextLesson.title}'
-                      : 'Continue Learning',
-                  onPressed: nextLesson == null
-                      ? null
-                      : () => Navigator.of(context).pushNamed(
-                            AppRoutes.lesson,
-                            arguments: {
-                              'lesson': nextLesson!,
-                              'lessons': lessons,
-                              'enrollment': enrollment,
-                              'courseId': course.id,
-                            },
-                          ),
-                ),
+              : enrollment.isCompleted
+                  ? GradientButton(
+                      label: '🎉  Course Completed!',
+                      gradientColors: const [AppColors.success, AppColors.accent],
+                      onPressed: () {},
+                    )
+                  : GradientButton(
+                      label: nextLesson != null
+                          ? 'Continue: ${nextLesson.title}'
+                          : 'Continue Learning',
+                      onPressed: nextLesson == null
+                          ? null
+                          : () => Navigator.of(context).pushNamed(
+                                AppRoutes.lesson,
+                                arguments: {
+                                  'lesson': nextLesson!,
+                                  'lessons': lessons,
+                                  'enrollment': enrollment,
+                                  'courseId': course.id,
+                                },
+                              ),
+                    ),
+        ],
+      ),
     );
   }
 

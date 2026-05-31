@@ -9,6 +9,7 @@ import '../../core/constants/app_routes.dart';
 import '../../models/course_model.dart';
 import '../../models/enrollment_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../providers/theme_provider.dart';
 
@@ -448,6 +449,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirmed == true && mounted) {
+      context.read<NotificationProvider>().stopListening();
       await context.read<AuthProvider>().signOut();
       if (mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.auth, (_) => false);

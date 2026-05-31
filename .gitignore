@@ -18,15 +18,11 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
@@ -44,8 +40,36 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Private Service Account Keys
+# Android local properties (machine-specific)
+android/local.properties
+android/.gradle/
+
+# iOS Pods
+ios/Pods/
+ios/.symlinks/
+
+# macOS
+macos/Flutter/ephemeral/
+macos/Pods/
+
+# Linux
+linux/flutter/ephemeral/
+
+# Windows
+windows/flutter/ephemeral/
+
+# Firebase Service Account Key — NEVER commit
 serviceAccountKey.json
 
-# Exclude accounts.txt
-accounts.txt
+# Python scripts (seeding scripts — not part of app)
+*.py
+
+# Environment files
+.env
+*.env
+
+# VS Code (optional — uncomment if you want to ignore)
+# .vscode/
+
+# Gradle reports
+android/build/

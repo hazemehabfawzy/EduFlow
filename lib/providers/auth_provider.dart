@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 /// Provides authentication state to the entire widget tree via [ChangeNotifier].
 ///
@@ -29,6 +30,10 @@ class AuthProvider extends ChangeNotifier {
   Future<void> init() async {
     try {
       _currentUser = await _authService.fetchCurrentUserModel();
+      if (_currentUser != null) {
+        // Re-save FCM token on app restart in case it was refreshed
+        NotificationService.saveTokenToFirestore(_currentUser!.uid);
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {

@@ -1,4 +1,5 @@
 // lib/screens/lesson/lesson_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,6 +11,7 @@ import '../../models/lesson_model.dart';
 import '../../models/enrollment_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/gradient_button.dart';
+import '../../widgets/rating_dialog.dart';
 
 class LessonScreen extends StatefulWidget {
   const LessonScreen({super.key});
@@ -368,28 +370,73 @@ class _LessonScreenState extends State<LessonScreen> {
         totalLessons: _lessons.length,
         currentCompleted: _enrollment!.completedLessonIds,
       );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Row(children: [
-          Icon(Icons.check_circle_outline, color: AppColors.success),
-          SizedBox(width: 10),
-          Text('Lesson marked as completed!'),
-        ]),
-        backgroundColor: Theme.of(context).brightness == Brightness.dark
-            ? AppColors.cardDark
-            : AppColors.white,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ));
-      if (_nextLesson != null) {
-        await Future.delayed(const Duration(seconds: 1));
-        if (mounted) _goToNext();
+
+      final newCompleted =
+          _enrollment!.completedLessonIds.length + 1;
+      final isNowComplete = newCompleted >= _lessons.length;
+
+      if (isNowComplete && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Row(children: [
+            Text('🎉 Course completed! '),
+            Expanded(child: Text('Amazing work!')),
+          ]),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ));
+
+        // Create a notification for the course completion
+        try {
+          final courseObj = await _service.fetchCourse(_courseId);
+          final courseTitle = courseObj?.title ?? 'the course';
+          unawaited(_service.notifyStudentCourseComplete(
+            studentId: _enrollment!.userId,
+            courseTitle: courseTitle,
+            courseId: _courseId,
+          ));
+        } catch (e) {
+          print('[LessonScreen] Course completion notification error: $e');
+        }
+
+        await Future.delayed(const Duration(seconds: 2));
+
+        if (mounted) {
+          final userId = _enrollment!.userId;
+          final existingRating = await _service.getUserRating(
+            courseId: _courseId,
+            userId: userId,
+          );
+          if (mounted) {
+            await RatingDialog.show(
+              context,
+              courseId: _courseId,
+              courseTitle: _lesson.title,
+              userId: userId,
+              existingRating: existingRating,
+            );
+          }
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Row(children: [
+            Icon(Icons.check_circle_outline,
+                color: AppColors.success),
+            SizedBox(width: 10),
+            Text('Lesson marked as completed!'),
+          ]),
+          behavior: SnackBarBehavior.floating,
+        ));
+        if (_nextLesson != null) {
+          await Future.delayed(const Duration(seconds: 1));
+          if (mounted) _goToNext();
+        }
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isMarkingComplete = false);
     }

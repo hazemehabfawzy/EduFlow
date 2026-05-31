@@ -1,7 +1,8 @@
-// lib/services/auth_service.dart
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
+import 'notification_service.dart';
 
 /// Wraps Firebase Authentication and user-document operations.
 /// All methods throw [AuthException] on failure so the UI layer
@@ -51,6 +52,7 @@ class AuthService {
       );
 
       await _db.collection('users').doc(user.uid).set(userModel.toMap());
+      unawaited(NotificationService.saveTokenToFirestore(user.uid));
 
       return userModel;
     } on FirebaseAuthException catch (e) {
@@ -83,6 +85,7 @@ class AuthService {
       if (userModel.role == 'admin' && userModel.email != adminEmail) {
         throw Exception('Unauthorized: This account does not have admin privileges.');
       }
+      unawaited(NotificationService.saveTokenToFirestore(user.uid));
 
       return userModel;
     } on FirebaseAuthException catch (e) {

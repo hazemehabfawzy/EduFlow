@@ -17,6 +17,9 @@ import '../../widgets/course_card.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/shimmer_card.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../widgets/notification_bell.dart';
+import '../../services/auth_session_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,10 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _coursesStream = context.read<CourseProvider>().streamCourses();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AuthSessionService.startMonitoring(context);
+    });
   }
 
   @override
   void dispose() {
+    AuthSessionService.stopMonitoring();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -104,6 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     backgroundColor: AppColors.primary,
                     surfaceTintColor: AppColors.primary,
                     actions: [
+                      const NotificationBell(),
                       IconButton(
                         tooltip: 'Toggle Dark Mode',
                         icon: Icon(
@@ -751,7 +759,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirmed == true && mounted) {
-      await FirebaseAuth.instance.signOut();
+      context.read<NotificationProvider>().stopListening();
+      await context.read<AuthProvider>().signOut();
       if (mounted) {
         Navigator.of(context)
             .pushNamedAndRemoveUntil(AppRoutes.auth, (_) => false);

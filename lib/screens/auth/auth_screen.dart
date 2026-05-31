@@ -9,6 +9,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/utils/validators.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../widgets/gradient_button.dart';
 import '../../widgets/custom_text_field.dart';
 
@@ -54,7 +55,7 @@ class _AuthScreenState extends State<AuthScreen>
   @override
   void initState() {
     super.initState();
-    _loginEmail.text = 'hazemehabsat@gamil.com';
+    _loginEmail.text = 'hazemehabsat@gmail.com';
     _loginPassword.text = 'H123456';
     _tabController = TabController(length: 2, vsync: this);
     // Clear provider error when tab changes
@@ -104,6 +105,8 @@ class _AuthScreenState extends State<AuthScreen>
 
     if (!mounted) return;
     if (success) {
+      final uid = context.read<AuthProvider>().currentUser!.uid;
+      context.read<NotificationProvider>().startListening(uid);
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
     } else {
       _showError(auth.errorMessage ?? 'Login failed');
@@ -124,6 +127,8 @@ class _AuthScreenState extends State<AuthScreen>
 
     if (!mounted) return;
     if (success) {
+      final uid = context.read<AuthProvider>().currentUser!.uid;
+      context.read<NotificationProvider>().startListening(uid);
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
     } else {
       _showError(auth.errorMessage ?? 'Registration failed');
