@@ -7,13 +7,13 @@ plugins {
 
 android {
     namespace = "com.example.eduflow"
-    compileSdk = 35        // was 36 — use stable release
-    ndkVersion = "27.0.12077973"  // update to stable NDK
+    compileSdk = 36
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "com.example.eduflow"
-        minSdk = 23        // raise from flutter.minSdkVersion — FCM requires 23+
-        targetSdk = 35     // was 35, keep
+        minSdk = 23
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
     }
@@ -27,6 +27,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
