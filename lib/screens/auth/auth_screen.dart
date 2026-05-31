@@ -489,17 +489,6 @@ class _LoginTab extends StatelessWidget {
                 .fadeIn(duration: 400.ms, delay: 250.ms)
                 .slideY(begin: 0.1),
 
-            const SizedBox(height: 20),
-            _OrDivider().animate().fadeIn(duration: 400.ms, delay: 280.ms),
-            const SizedBox(height: 16),
-            _SocialButton(
-              label: 'Continue with Google',
-              icon: Icons.g_mobiledata_rounded,
-              onTap: () {},
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 300.ms)
-                .slideY(begin: 0.1),
           ],
         ),
       ),
@@ -691,17 +680,6 @@ class _RegisterTabState extends State<_RegisterTab> {
                 .fadeIn(duration: 400.ms, delay: 320.ms)
                 .slideY(begin: 0.1),
 
-            const SizedBox(height: 20),
-            _OrDivider().animate().fadeIn(duration: 400.ms, delay: 340.ms),
-            const SizedBox(height: 16),
-            _SocialButton(
-              label: 'Continue with Google',
-              icon: Icons.g_mobiledata_rounded,
-              onTap: () {},
-            )
-                .animate()
-                .fadeIn(duration: 400.ms, delay: 360.ms)
-                .slideY(begin: 0.1),
           ],
         ),
       ),
@@ -850,74 +828,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
 // HELPER WIDGETS
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _OrDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: AppColors.textHint.withOpacity(0.5))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'or',
-            style: GoogleFonts.dmSans(
-              color: AppColors.textHint,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        Expanded(child: Divider(color: AppColors.textHint.withOpacity(0.5))),
-      ],
-    );
-  }
-}
 
-class _SocialButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _SocialButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 54,
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : AppColors.borderLight,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24, color: AppColors.primary),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isDark ? AppColors.white : AppColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _Circle extends StatelessWidget {
   final double size;
