@@ -1,17 +1,34 @@
-# project
+# EduFlow 🎓
 
-A new Flutter project.
+A modern Flutter educational app built with Firebase.
 
-## Getting Started
+## Features
+- 🔐 Role-based auth (Admin / Teacher / Student)
+- 📚 Course browsing with search and category filter
+- 🎬 Lesson viewer with progress tracking
+- ⭐ Course rating system
+- 🔔 In-app notification center
+- 📊 Admin analytics dashboard (fl_chart)
+- 🌙 Dark mode with persistence
+- 👨🏫 Teacher dashboard with lesson management
+- 📧 Enrollment confirmation emails (Firebase Functions)
 
-This project is a starting point for a Flutter application.
+## Tech Stack
+- Flutter 3.x
+- Firebase (Auth, Firestore, Storage, Messaging)
+- Provider state management
+- fl_chart for analytics
+- Google Fonts (Poppins + DM Sans)
 
-A few resources to get you started if this is your first Flutter project:
+## Accounts
+See `accounts.txt` for login credentials.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Setup
+1. Clone the repo
+2. Run `flutter pub get`
+3. Add your `google-services.json` to `android/app/`
+4. Add your `serviceAccountKey.json` to root (not committed)
+5. Run `flutter run`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Firebase Rules
+See Firebase Console for Firestore security rules.
