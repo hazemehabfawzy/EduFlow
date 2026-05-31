@@ -20,11 +20,8 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       default:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions are not configured for this platform '
-          '(${defaultTargetPlatform.name}). '
-          'Run `flutterfire configure` to add support.',
-        );
+        // Fallback to android options instead of crashing on unsupported platforms like Windows/Linux
+        return android;
     }
   }
 

@@ -28,15 +28,20 @@ import 'firebase_options.dart'; // ← Uncomment after `flutterfire configure`
 void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-    // Prevent Firestore DNS failures from crashing the app
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-    );
+    try {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-    await NotificationService.initialize(); // ADD THIS
+      // Prevent Firestore DNS failures from crashing the app
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+      );
+
+      await NotificationService.initialize();
+    } catch (e) {
+      print('[EduFlow] Firebase or Notification initialization failed: $e');
+    }
 
     runApp(
       MultiProvider(
